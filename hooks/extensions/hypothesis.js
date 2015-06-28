@@ -4,20 +4,9 @@ EPUBJS.Hooks.register("beforeChapterDisplay").hypothesis = function(callback, re
 		
 		if(!renderer) return;
 
-		setTimeout( function() { $('iframe')[0].contentWindow.hypothesisRole = function (element, options) {
-          if(typeof $('iframe')[0].contentWindow.Annotator !== "undefined" && $('iframe')[0].contentWindow.Annotator !== null) {
-            console.log('success');
-            return new $('iframe')[0].contentWindow.Annotator.Guest(element, options);
-          } else {
-            return;
-          };
-        };}, 1000);
+		EPUBJS.core.addScript("/hooks/extensions/embedh.js", null, renderer.doc.head);
 
-		$('iframe')[0].contentWindow.hypothesisConfig = function () {
-			return {};
-		};
-
-		EPUBJS.core.addScript("https://hypothes.is/embed.js", null, renderer.doc.head);
+		EPUBJS.core.addScript("http://localhost:5000/app/embed.js", null, renderer.doc.head);
 		
 		EPUBJS.core.addCss( cssPath + "annotations.css", null, renderer.doc.head);
 
