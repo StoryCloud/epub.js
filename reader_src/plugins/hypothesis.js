@@ -37,16 +37,16 @@ EPUBJS.reader.plugins.HypothesisController = function(Book) {
 	};
 	
 	var attach = function(){
-		window.annotator.frame.appendTo(element);
+		// window.annotator.frame.appendTo(element);
+
+		// window.annotator.subscribe('annotationEditorShown', function () {
+		// 	showAnnotations(true);
+		// });
 		
-		window.annotator.subscribe('annotationEditorShown', function () {
-			showAnnotations(true);
-		});
-		
-		window.annotator.subscribe('annotationViewerShown', function () {
-			showAnnotations(true);
-		});
-		
+		// window.annotator.subscribe('annotationViewerShown', function () {
+		// 	showAnnotations(true);
+		// });
+
 		window.annotator.subscribe("annotationsLoaded", function(e){
 			var _$ = reader.book.renderer.render.window.annotator.constructor.$; 
 			

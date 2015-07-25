@@ -1,5 +1,5 @@
-window.hypothesisRole = "Guest"
-
 window.hypothesisConfig = function () {
-	return {};
+	return {
+		constructor: Annotator.Guest
+	};
 };
