@@ -40,10 +40,12 @@ EPUBJS.reader.plugins.HypothesisController = function(Book) {
 		// window.annotator.frame.appendTo(element);
 
 		// window.annotator.subscribe('annotationEditorShown', function () {
+		// 	console.log('annotationEditorShown');
 		// 	showAnnotations(true);
 		// });
 		
 		// window.annotator.subscribe('annotationViewerShown', function () {
+		// 	console.log('annotationViewerShown');
 		// 	showAnnotations(true);
 		// });
 
