@@ -1,0 +1,16 @@
+# EditorConfig is awesome: http://EditorConfig.org
+
+# This is the top-most EditorConfig file.
+root = true
+
+[*]
+insert_final_newline = false
+indent_style = tab
+
+[*.{html,css}]
+indent_style = space
+indent_size = 4
+
+[*.{json,jshintrc}]
+indent_style = space
+indent_size = 2
