@@ -13,6 +13,7 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 	* Options are: Iframe
 	*/
 	if(renderMethod && typeof(EPUBJS.Render[renderMethod]) != "undefined"){
+		// TODO: Needs a buffer of renders.
 		this.render = new EPUBJS.Render[renderMethod]();
 	} else {
 		console.error("Not a Valid Rendering Method");
@@ -73,6 +74,8 @@ EPUBJS.Renderer.prototype.Events = [
 * Resizes to passed width and height or to the elements size
 */
 EPUBJS.Renderer.prototype.initialize = function(element, width, height){
+	// TODO: Needs to handle and create multiple elements.
+
 	this.container = element;
 	this.element = this.render.create();
 
@@ -99,6 +102,8 @@ EPUBJS.Renderer.prototype.initialize = function(element, width, height){
 * Returns: Promise with passed Renderer after pages has loaded
 */
 EPUBJS.Renderer.prototype.displayChapter = function(chapter, globalLayout){
+	// TODO: Should also display surrounding chapters
+
 	var store = false;
 	if(this._moving) {
 		console.warning("Rendering In Progress");
@@ -326,6 +331,8 @@ EPUBJS.Renderer.prototype.beforeDisplay = function(callback, renderer){
 
 // Update the renderer with the information passed by the layout
 EPUBJS.Renderer.prototype.updatePages = function(layout){
+	// TODO: Needs to handle the pages of multiple chapters
+
 	this.pageMap = this.mapPage();
 	// this.displayedPages = layout.displayedPages;
 
@@ -342,6 +349,8 @@ EPUBJS.Renderer.prototype.updatePages = function(layout){
 
 // Apply the layout again and jump back to the previous cfi position
 EPUBJS.Renderer.prototype.reformat = function(){
+	// TODO: Needs to handle multiple chapters
+
 	var renderer = this;
 	var formated, pages;
 	var spreads;
@@ -393,6 +402,8 @@ EPUBJS.Renderer.prototype.visible = function(bool){
 
 // Remove the render element and clean up listeners
 EPUBJS.Renderer.prototype.remove = function() {
+	// TODO: Needs to remove each render
+
 	if(this.render.window) {
 		this.render.unload();
 		this.render.window.removeEventListener("resize", this.resized);
@@ -404,6 +415,8 @@ EPUBJS.Renderer.prototype.remove = function() {
 };
 
 //-- STYLES
+
+// TODO: Need to handle each render
 
 EPUBJS.Renderer.prototype.applyStyles = function(styles) {
 	for (var style in styles) {
@@ -1144,6 +1157,8 @@ EPUBJS.Renderer.prototype.hideHashChanges = function(){
 */
 
 EPUBJS.Renderer.prototype.resize = function(width, height, setSize){
+	// TODO: Has to resize all
+
 	var spreads;
 
 	this.width = width;
@@ -1199,6 +1214,8 @@ EPUBJS.Renderer.prototype.triggerEvent = function(e){
 	this.trigger("renderer:"+e.type, e);
 };
 
+// TODO: Handle each render the selection handlers
+
 EPUBJS.Renderer.prototype.addSelectionListeners = function(){
 	this.render.document.addEventListener("selectionchange", this.onSelectionChange.bind(this), false);
 };
@@ -1252,7 +1269,7 @@ EPUBJS.Renderer.prototype.setGap = function(gap){
 
 EPUBJS.Renderer.prototype.setDirection = function(direction){
 	this.direction = direction;
-	this.render.setDirection(this.direction);
+	this.render.setDirection(this.direction); // TODO: Each render
 };
 
 //-- Content Replacements

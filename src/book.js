@@ -525,6 +525,8 @@ EPUBJS.Book.prototype.listenToRenderer = function(renderer){
 // Listens for load events from the Renderer and checks against the current chapter
 // Prevents the Render from loading a different chapter when back button is pressed
 EPUBJS.Book.prototype.loadChange = function(url){
+	// TODO: Need to assume multiple chapters here
+
 	var uri = EPUBJS.core.uri(url);
 	var chapterUri = EPUBJS.core.uri(this.currentChapter.absolute);
 	var spinePos, chapter;
@@ -778,6 +780,8 @@ EPUBJS.Book.prototype.restore = function(identifier){
 };
 
 EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
+	// TODO: Needs to handle multiple chapters.
+
 	var book = this,
 		render,
 		cfi,
@@ -819,6 +823,7 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 	}
 
 	//-- Create a new chapter
+	// TODO: Might need multiple chapters
 	chapter = new EPUBJS.Chapter(this.spine[pos], this.store);
 
 	this._rendering = true;
@@ -851,7 +856,7 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 
 		if(book.settings.fromStorage === false &&
 			book.settings.contained === false) {
-			book.preloadNextChapter();
+			book.preloadNextChapter(); // TODO: Might load multiple
 		}
 
 		book._rendering = false;
@@ -881,6 +886,8 @@ EPUBJS.Book.prototype.nextPage = function(defer){
     
 	var next = this.renderer.nextPage();
 	if (!next){
+		// TODO: Not necessarily the next chapter. Actually probably
+		// always the next "page".
 		return this.nextChapter(defer);
 	}
 
@@ -898,6 +905,7 @@ EPUBJS.Book.prototype.prevPage = function(defer) {
     
 	var prev = this.renderer.prevPage();
 	if (!prev){
+		// TODO: See `nextPage`.
 		return this.prevChapter(defer);
 	}
 
@@ -944,7 +952,7 @@ EPUBJS.Book.prototype.prevChapter = function(defer) {
 
 EPUBJS.Book.prototype.getCurrentLocationCfi = function() {
 	if(!this.isRendered) return false;
-	return this.renderer.currentLocationCfi;
+	return this.renderer.currentLocationCfi; // TODO: Ensure this is correct
 };
 
 EPUBJS.Book.prototype.goto = function(target){
@@ -962,6 +970,8 @@ EPUBJS.Book.prototype.goto = function(target){
 };
 
 EPUBJS.Book.prototype.gotoCfi = function(cfiString, defer){
+	// TODO: Ensure correct "set" of chapters are loaded.
+
 	var cfi,
 			spinePos,
 			spineItem,
@@ -1092,6 +1102,7 @@ EPUBJS.Book.prototype.gotoPercentage = function(percent){
 	return this.gotoPage(pg);
 };
 
+// TODO: Would rather preload the next *set* of chapters.
 EPUBJS.Book.prototype.preloadNextChapter = function() {
 	var next;
 	var chap = this.spinePos + 1;
@@ -1246,6 +1257,8 @@ EPUBJS.Book.prototype.setGap = function(gap) {
 };
 
 EPUBJS.Book.prototype.chapter = function(path) {
+	// TODO: Needs to handle the next *set* of chapters.
+
 	var spinePos = this.spineIndexByURL[path];
 	var spineItem;
 	var chapter;
