@@ -1,5 +1,5 @@
 EPUBJS.Render.Iframe = function() {
-	this.iframe = null;
+	this.iframe = this.element = null;
 	this.document = null;
 	this.window = null;
 	this.docEl = null;
@@ -11,7 +11,7 @@ EPUBJS.Render.Iframe = function() {
 
 //-- Build up any html needed
 EPUBJS.Render.Iframe.prototype.create = function(){
-	this.iframe = document.createElement('iframe');
+	this.iframe = this.element = document.createElement('iframe');
 	this.iframe.id = "epubjs-iframe:" + EPUBJS.core.uuid();
 	this.iframe.scrolling = "no";
 	this.iframe.seamless = "seamless";
