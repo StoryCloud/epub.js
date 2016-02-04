@@ -14,7 +14,11 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 	*/
 	if(renderMethod && typeof(EPUBJS.Render[renderMethod]) != "undefined"){
 		this.renders = [];
-		this.renders.push(new EPUBJS.Render[renderMethod]());
+		// TODO: Might want a pool of 6 renders to pre-load the next and
+		// previous sets of chapters.
+		for (var i = 0; i < 2; i++) {
+			this.renders.push(new EPUBJS.Render[renderMethod]());
+		}
 	} else {
 		console.error("Not a Valid Rendering Method");
 	}
@@ -47,6 +51,9 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 	this._q = EPUBJS.core.queue(this);
 
 	this._moving = false;
+
+	this.firstVisibleRender = 0;
+	this.visibleRenders = 1;
 
 };
 
@@ -229,7 +236,8 @@ EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
 
 	// Format the contents using the current layout method
 	var formatted = this.layout.format(contents, render.width, render.height, this.gap);
-	render.setPageDimensions(formatted.pageWidth, formatted.pageHeight);
+	render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
+	this.determineVisibleRenders();
 
 	// window.addEventListener("orientationchange", this.onResized.bind(this), false);
 	if(!this.initWidth && !this.initHeight){
@@ -268,6 +276,23 @@ EPUBJS.Renderer.prototype.loaded = function(url){
 	// var uri = EPUBJS.core.uri(url);
 	// var relative = uri.path.replace(book.bookUrl, '');
 	// console.log(url, uri, relative);
+};
+
+EPUBJS.Renderer.prototype.determineVisibleRenders = function() {
+	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
+		this.visibleRenders = 2;
+	} else {
+		this.visibleRenders = 1;
+	}
+	// Allocate space for each render.
+	var lastVisibleRender = this.firstVisibleRender + this.visibleRenders - 1;
+	this.renders.forEach(function (render, index) {
+		var isVisible = this.firstVisibleRender <= index && index <= lastVisibleRender;
+		this.visible(isVisible, render);
+		var width = (1 / this.visibleRenders * 100) + "%";
+		var height = "100%";
+		render.resize(width, height);
+	}, this);
 };
 
 /**
@@ -316,7 +341,7 @@ EPUBJS.Renderer.prototype.determineLayout = function(settings){
 	if(settings.layout === "pre-paginated") {
 		layoutMethod = "Fixed";
 		scroll = true;
-		spreads = false;
+		// Use the determined spreads value.
 	}
 
 	if(settings.layout === "reflowable" && settings.spread === "none") {
@@ -377,6 +402,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 		this.spreads = spreads;
 		this.layoutMethod = this.determineLayout(this.layoutSettings);
 		this.layout = new EPUBJS.Layout[this.layoutMethod]();
+		this.determineVisibleRenders();
 	}
 
 	// Reset pages
@@ -385,7 +411,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 	this.renders.forEach(function(render) {
 		render.page(this.chapterPos);
 		var formatted = renderer.layout.format(render.docEl, render.width, render.height, renderer.gap);
-		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight);
+		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
 	}, this);
 
 	// TODO: Needs to handle multiple chapters

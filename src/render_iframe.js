@@ -7,6 +7,7 @@ EPUBJS.Render.Iframe = function() {
 
 	this.leftPos = 0;
 	this.pageWidth = 0;
+	this.scale = 1;
 };
 
 //-- Build up any html needed
@@ -120,6 +121,12 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 	// Default to orginal if bounding rect is 0
 	this.width = this.iframe.getBoundingClientRect().width || width;
 	this.height = this.iframe.getBoundingClientRect().height || height;
+
+	// Set a maximum width so the frame will always be just as wide as the
+	// document, resulting in the pages sitting right next to each other.
+	if (this.pageWidth !== 0) {
+		this.iframe.style.maxWidth = (this.pageWidth * this.scale) + "px";
+	}
 };
 
 
@@ -137,9 +144,10 @@ EPUBJS.Render.Iframe.prototype.totalHeight = function(){
 	return this.docEl.scrollHeight;
 };
 
-EPUBJS.Render.Iframe.prototype.setPageDimensions = function(pageWidth, pageHeight){
+EPUBJS.Render.Iframe.prototype.setPageDimensions = function(pageWidth, pageHeight, scale){
 	this.pageWidth = pageWidth;
 	this.pageHeight = pageHeight;
+	this.scale = scale;
 	//-- Add a page to the width of the document to account an for odd number of pages
 	// this.docEl.style.width = this.docEl.scrollWidth + pageWidth + "px";
 };

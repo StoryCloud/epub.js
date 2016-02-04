@@ -51,7 +51,8 @@ EPUBJS.Layout.Reflowable.prototype.format = function(documentElement, _width, _h
 
 	return {
 		pageWidth : this.spreadWidth,
-		pageHeight : _height
+		pageHeight : _height,
+		scale : 1
 	};
 };
 
@@ -113,7 +114,8 @@ EPUBJS.Layout.ReflowableSpreads.prototype.format = function(documentElement, _wi
 	this.gap = gap;
 	return {
 		pageWidth : this.spreadWidth,
-		pageHeight : _height
+		pageHeight : _height,
+		scale : 1
 	};
 };
 
@@ -184,7 +186,8 @@ EPUBJS.Layout.Fixed.prototype.format = function(documentElement, _width, _height
 
 	return {
 		pageWidth : width,
-		pageHeight : height
+		pageHeight : height,
+		scale : scale
 	};
 
 };
