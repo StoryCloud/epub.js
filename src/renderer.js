@@ -220,7 +220,6 @@ EPUBJS.Renderer.prototype.load = function(contents, url){
 };
 
 EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
-	var formated;
 	this.currentChapter.setDocument(render.document);
 
 	// TODO: Remove these variables, maybe with back-compat getters, but
@@ -229,9 +228,8 @@ EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
 	this.doc = render.document;
 
 	// Format the contents using the current layout method
-	// TODO: Handle this "formated" thing
-	this.formated = this.layout.format(contents, render.width, render.height, this.gap);
-	render.setPageDimensions(this.formated.pageWidth, this.formated.pageHeight);
+	var formatted = this.layout.format(contents, render.width, render.height, this.gap);
+	render.setPageDimensions(formatted.pageWidth, formatted.pageHeight);
 
 	// window.addEventListener("orientationchange", this.onResized.bind(this), false);
 	if(!this.initWidth && !this.initHeight){
@@ -367,7 +365,7 @@ EPUBJS.Renderer.prototype.updatePages = function(layout){
 // Apply the layout again and jump back to the previous cfi position
 EPUBJS.Renderer.prototype.reformat = function(){
 	var renderer = this;
-	var formated, pages;
+	var pages;
 	var spreads;
 
 	if(!this.contents) return;
@@ -386,9 +384,8 @@ EPUBJS.Renderer.prototype.reformat = function(){
 
 	this.renders.forEach(function(render) {
 		render.page(this.chapterPos);
-		// TODO: Don't set this "formated" thing
-		renderer.formated = renderer.layout.format(render.docEl, render.width, render.height, renderer.gap);
-		render.setPageDimensions(renderer.formated.pageWidth, renderer.formated.pageHeight);
+		var formatted = renderer.layout.format(render.docEl, render.width, render.height, renderer.gap);
+		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight);
 	}, this);
 
 	// TODO: Needs to handle multiple chapters
@@ -684,7 +681,7 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 	var root = this.renders[0].getBaseElement(); // TODO: Which render??
 	var page = 1;
 	var width = this.layout.colWidth + this.layout.gap;
-	var offset = this.formated.pageWidth * (this.chapterPos-1);
+	var offset = this.renders[0].pageWidth * (this.chapterPos-1);
 	var limit = (width * page) - offset;// (width * page) - offset;
 	var elLimit = 0;
 	var prevRange;
