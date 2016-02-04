@@ -13,12 +13,16 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 	* Options are: Iframe
 	*/
 	if(renderMethod && typeof(EPUBJS.Render[renderMethod]) != "undefined"){
+		// Create a pool of renders so we can load the previous, current and
+		// next sets of chapters. Up to 2 chapters can be visible at a time. So,
+		// 2 * 3 = 6. We could probably load even more depending on memory
+		// availability.
 		this.renders = [];
-		// TODO: Might want a pool of 6 renders to pre-load the next and
-		// previous sets of chapters.
-		for (var i = 0; i < 2; i++) {
+		for (var i = 0; i < 6; i++) {
 			this.renders.push(new EPUBJS.Render[renderMethod]());
 		}
+		this.firstVisibleRender = Math.floor((this.renders.length - 1) / 2);
+		this.visibleRenders = 1;
 	} else {
 		console.error("Not a Valid Rendering Method");
 	}
@@ -51,9 +55,6 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 	this._q = EPUBJS.core.queue(this);
 
 	this._moving = false;
-
-	this.firstVisibleRender = 0;
-	this.visibleRenders = 1;
 
 };
 
@@ -137,12 +138,12 @@ EPUBJS.Renderer.prototype.displayChapter = function(chapter, globalLayout){
 				this.trigger("renderer:chapterUnload");
 				this.currentChapter.unload(); // Remove stored blobs
 
-				if(this.renders[0].window){
-					this.renders[0].window.removeEventListener("resize", this.resized);
+				if(this.getVisibleRender().window){
+					this.getVisibleRender().window.removeEventListener("resize", this.resized);
 				}
 
-				this.removeEventListeners(this.renders[0]);
-				this.removeSelectionListeners(this.renders[0]);
+				this.removeEventListeners(this.getVisibleRender());
+				this.removeSelectionListeners(this.getVisibleRender());
 				this.trigger("renderer:chapterUnloaded");
 				this.contents = null;
 				this.doc = null;
@@ -182,7 +183,7 @@ EPUBJS.Renderer.prototype.load = function(contents, url){
 	this.layout = new EPUBJS.Layout[this.layoutMethod]();
 
 	// TODO: Actually determine which render is appropriate to load into
-	var render = this.renders[0];
+	var render = this.getVisibleRender();
 
 	this.visible(false, render);
 
@@ -278,6 +279,12 @@ EPUBJS.Renderer.prototype.loaded = function(url){
 	// console.log(url, uri, relative);
 };
 
+// TODO: Remove this method, it's just an intermediate helper method for
+// transitioning to a "multiple render mentality."
+EPUBJS.Renderer.prototype.getVisibleRender = function() {
+    return this.renders[this.firstVisibleRender];
+};
+
 EPUBJS.Renderer.prototype.determineVisibleRenders = function() {
 	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
 		this.visibleRenders = 2;
@@ -286,7 +293,7 @@ EPUBJS.Renderer.prototype.determineVisibleRenders = function() {
 	}
 	// Allocate space for each render.
 	var lastVisibleRender = this.firstVisibleRender + this.visibleRenders - 1;
-	this.renders.forEach(function (render, index) {
+	this.renders.forEach(function(render, index) {
 		var isVisible = this.firstVisibleRender <= index && index <= lastVisibleRender;
 		this.visible(isVisible, render);
 		var width = (1 / this.visibleRenders * 100) + "%";
@@ -427,13 +434,13 @@ EPUBJS.Renderer.prototype.reformat = function(){
 // Hide and show the render's container .
 EPUBJS.Renderer.prototype.visible = function(bool, render){
 	if(typeof(bool) === "undefined") {
-		return render.element.style.visibility;
+		return render.element.style.display;
 	}
 
 	if(bool === true && !this.hidden){
-		render.element.style.visibility = "visible";
+		render.element.style.display = "inline";
 	}else if(bool === false){
-		render.element.style.visibility = "hidden";
+		render.element.style.display = "none";
 	}
 };
 
@@ -499,7 +506,7 @@ EPUBJS.Renderer.prototype.page = function(pg){
 		this.chapterPos = pg;
 
 		// TODO: Needs to jump the relevant render to the correct page
-		this.renders[0].page(pg);
+		this.getVisibleRender().page(pg);
 		this.visibleRangeCfi = this.getVisibleRangeCfi();
 		this.currentLocationCfi = this.visibleRangeCfi.start;
 		this.trigger("renderer:locationChanged", this.currentLocationCfi);
@@ -543,7 +550,7 @@ EPUBJS.Renderer.prototype.pageByElement = function(el){
 	if(!el) return;
 
 	// TODO: Needs to iterate each render
-	pg = this.renders[0].getPageNumberByElement(el);
+	pg = this.getVisibleRender().getPageNumberByElement(el);
 	this.page(pg);
 };
 
@@ -704,10 +711,10 @@ EPUBJS.Renderer.prototype.sprint = function(root, func) {
 EPUBJS.Renderer.prototype.mapPage = function(){
 	var renderer = this;
 	var map = [];
-	var root = this.renders[0].getBaseElement(); // TODO: Which render??
+	var root = this.getVisibleRender().getBaseElement(); // TODO: Which render??
 	var page = 1;
 	var width = this.layout.colWidth + this.layout.gap;
-	var offset = this.renders[0].pageWidth * (this.chapterPos-1);
+	var offset = this.getVisibleRender().pageWidth * (this.chapterPos-1);
 	var limit = (width * page) - offset;// (width * page) - offset;
 	var elLimit = 0;
 	var prevRange;
@@ -797,7 +804,7 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 
 		return result;
 	};
-	var docEl = this.renders[0].getDocumentElement();
+	var docEl = this.getVisibleRender().getDocumentElement();
 	var dir = docEl.dir;
 
 	// Set back to ltr before sprinting to get correct order
@@ -1126,7 +1133,7 @@ EPUBJS.Renderer.prototype.gotoCfi = function(cfi){
 	if(typeof document.evaluate === 'undefined') {
 		marker = this.epubcfi.addMarker(cfi, this.doc);
 		if(marker) {
-			pg = this.renders[0].getPageNumberByElement(marker);
+			pg = this.getVisibleRender().getPageNumberByElement(marker);
 			// Must Clean up Marker before going to page
 			this.epubcfi.removeMarker(marker, this.doc);
 			this.page(pg);
@@ -1141,7 +1148,7 @@ EPUBJS.Renderer.prototype.gotoCfi = function(cfi){
 			// NOTE: Observed on Android 4.2.1 using WebView widget as HTML renderer (Asus TF300T).
 			var rect = range.getBoundingClientRect();
 			if (rect) {
-				pg = this.renders[0].getPageNumberByRect(rect);
+				pg = this.getVisibleRender().getPageNumberByRect(rect);
 
 			} else {
 				// Goto first page in chapter
@@ -1161,7 +1168,7 @@ EPUBJS.Renderer.prototype.gotoCfi = function(cfi){
 
 //  Walk nodes until a visible element is found
 EPUBJS.Renderer.prototype.findFirstVisible = function(startEl){
-	var el = startEl || this.renders[0].getBaseElement();
+	var el = startEl || this.getVisibleRender().getBaseElement();
 	var	found;
 	// kgolunski@7bulls.com
 	// Looks like an old API usage
@@ -1177,7 +1184,7 @@ EPUBJS.Renderer.prototype.findFirstVisible = function(startEl){
 };
 // TODO: remove me - unsused
 EPUBJS.Renderer.prototype.findElementAfter = function(x, y, startEl){
-	var el = startEl || this.renders[0].getBaseElement();
+	var el = startEl || this.getVisibleRender().getBaseElement();
 	var	found;
 	found = this.walk(el, x, y);
 	if(found) {
