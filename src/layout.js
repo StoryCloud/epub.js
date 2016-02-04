@@ -151,10 +151,10 @@ EPUBJS.Layout.Fixed.prototype.format = function(documentElement, _width, _height
 		content = viewport.getAttribute("content");
 		contents = content.split(',');
 		if(contents[0]){
-			width = contents[0].replace("width=", '');
+			width = parseFloat(contents[0].replace("width=", ''));
 		}
 		if(contents[1]){
-			height = contents[1].replace("height=", '');
+			height = parseFloat(contents[1].replace("height=", ''));
 		}
 	}
 
