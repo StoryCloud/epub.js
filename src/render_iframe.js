@@ -281,6 +281,14 @@ EPUBJS.Render.Iframe.prototype.scroll = function(bool){
 	}
 };
 
+EPUBJS.Render.Iframe.prototype.visible = function(bool){
+	if(bool) {
+		this.element.style.display = "inline";
+	} else {
+		this.element.style.display = "none";
+	}
+};
+
 // Cleanup event listeners
 EPUBJS.Render.Iframe.prototype.unload = function(){
 	this.window.removeEventListener("resize", this.resized);

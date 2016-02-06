@@ -90,8 +90,11 @@ EPUBJS.Book = function(options){
 	/**
 	* Creates a new renderer.
 	* The renderer will handle displaying the content using the method provided in the settings
-	*/
-	this.renderer = new EPUBJS.Renderer(this.settings.render_method);
+	 */
+	// Up to 2 chapters can be displayed at a time. And we also want to pre-load
+	// the previous and next sets of chapters. 2 * 3 = 6
+	this.bufferSize = 6;
+	this.renderer = new EPUBJS.Renderer(this.settings.render_method, this.bufferSize);
 	//-- Set the width at which to switch from spreads to single pages
 	this.renderer.setMinSpreadWidth(this.settings.minSpreadWidth);
 	this.renderer.setGap(this.settings.gap);
@@ -354,7 +357,7 @@ EPUBJS.Book.prototype.createHiddenRender = function(renderer, _width, _height) {
 // Generates the pageList array by loading every chapter and paging through them
 EPUBJS.Book.prototype.generatePageList = function(width, height, flag){
 	var pageList = [];
-	var pager = new EPUBJS.Renderer(this.settings.render_method, false); //hidden
+	var pager = new EPUBJS.Renderer(this.settings.render_method, void 0, false); //hidden
 	var hiddenContainer = this.createHiddenRender(pager, width, height);
 	var deferred = new RSVP.defer();
 	var spinePos = -1;
@@ -779,6 +782,87 @@ EPUBJS.Book.prototype.restore = function(identifier){
 
 };
 
+// Pivot around the "middle" chapter (`chap`), creating a list of chapters with
+// a length up to `this.bufferSize`. Typically the chapters alternate around the
+// middle, but if there are no more chapters on the left or right sides, we
+// attempt to fill the remainder of the list with chapters from the opposite
+// side, in an effort to use as many of the renderer's buffers as possible.
+EPUBJS.Book.prototype.getSurroundingChapters = function(chap){
+	var pos, cfi;
+
+	if (EPUBJS.core.isNumber(chap)) {
+		pos = chap;
+	} else {
+		cfi = new EPUBJS.EpubCFI(chap);
+		pos = cfi.spinePos;
+	}
+
+	if (pos < 0 || pos >= this.spine.length) {
+		console.warn("Not A Valid Location");
+		pos = 0;
+		cfi = false;
+	}
+
+	var chapters = [];
+
+	// Move in `step` direction (negative or positive) by a quantity of `delta`
+	// chapters, seeking an spinal entry. There is a special case for the first
+	// entry, so a boolean `first` can be provided to indicate it's the first.
+	var seekEntry = function (step, delta, first) {
+		var index = pos;
+		var entry;
+		for (var j = 0; j < delta; j++) {
+			for (;;) {
+				// Special case for the very first stab at the first entry,
+				// which we don't want to pivot on.
+				index += first ? 0 : step;
+				entry = this.spine[index];
+				// Skip non-linear chapters.
+				if (entry && entry.linear && entry.linear === 'no') {
+					index += step;
+					first = false;
+				} else {
+					break;
+				}
+			}
+		}
+		return entry;
+	}.bind(this);
+
+	var leftStep = -1;
+	var rightStep = 1;
+
+	for (var i = 0; i < this.bufferSize; i++) {
+		// The first is a special case, we need to locate the "middle" item, but
+		// it could be a non-linear chapter, so we still need to seek.
+		var first = i === 0;
+		// Increase the delta by 1 every other time, beginning the alternation
+		// after the first time.
+		var delta = first ? 1 : Math.floor((i - 1) / 2) + 1;
+		var leftEntry, rightEntry, entry;
+		// If it would not be possible to obtain a left or right entry at any
+		// time, that implies we might seek from the beginning or end without
+		// alternation. Otherwise, alternate. (Weird assignment expressions are
+		// to avoid needless duplicate computation.)
+		if (!(leftEntry = seekEntry(leftStep, delta, first))) {
+			entry = seekEntry(rightStep, i - pos);
+		} else if (!(rightEntry = seekEntry(rightStep, delta, first))) {
+			entry = seekEntry(leftStep, (this.bufferSize - 1) - i + pos);
+		} else {
+			var direction = i % 2 === 0 ? 'left' : 'right';
+			entry = direction === 'left' ? leftEntry : rightEntry;
+		}
+		// Even after all that searching, it's still possible there is no entry
+		// (maybe the book is smaller than the buffer).
+		if (entry) {
+			var chapter = new EPUBJS.Chapter(entry, this.store);
+			chapters.push(chapter);
+		}
+	}
+
+	return chapters;
+};
+
 EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 	// TODO: Needs to handle multiple chapters.
 
@@ -788,8 +872,6 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 		pos,
 		store,
 		defer = deferred || new RSVP.defer();
-
-	var chapter;
 
 	if(!this.isRendered) {
 		this._q.enqueue("displayChapter", arguments);
@@ -808,39 +890,29 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 		return defer.promise;
 	}
 
-	if(EPUBJS.core.isNumber(chap)){
-		pos = chap;
-	}else{
-		cfi = new EPUBJS.EpubCFI(chap);
-		pos = cfi.spinePos;
-	}
-
-	if(pos < 0 || pos >= this.spine.length){
-		console.warn("Not A Valid Location");
-		pos = 0;
-		end = false;
-		cfi = false;
-	}
-
-	//-- Create a new chapter
-	// TODO: Might need multiple chapters
-	chapter = new EPUBJS.Chapter(this.spine[pos], this.store);
+	var chapters = this.getSurroundingChapters(chap);
 
 	this._rendering = true;
 
 	if(this._needsAssetReplacement()) {
 
-		chapter.registerHook("beforeChapterRender", [
-			EPUBJS.replace.head,
-			EPUBJS.replace.resources,
-			EPUBJS.replace.svg
-		], true);
+		chapters.forEach(function (chapter) {
+			if (!chapter) {
+				return;
+			}
+			chapter.registerHook("beforeChapterRender", [
+				EPUBJS.replace.head,
+				EPUBJS.replace.resources,
+				EPUBJS.replace.svg
+			], true);
+		}, this);
 
 	}
 
-	book.currentChapter = chapter;
+	// TODO: Don't have a "currentChapter"
+	book.currentChapter = chapters[0];
 
-	render = book.renderer.displayChapter(chapter, this.globalLayoutProperties);
+	render = book.renderer.displayChapters(chapters, this.globalLayoutProperties);
 	if(cfi) {
 		book.renderer.gotoCfi(cfi);
 	} else if(end) {

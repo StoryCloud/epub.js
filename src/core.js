@@ -566,6 +566,42 @@ EPUBJS.core.indexOfTextNode = function(textNode){
 	return index;
 };
 
+EPUBJS.core.contains = function(array, value) {
+	return array.indexOf(value) > -1;
+};
+
+EPUBJS.core.find = function(iterable, predicate, context) {
+	var found;
+	Array.prototype.some.call(iterable, function(element) {
+		var result = predicate.apply(this, arguments);
+		if (result) {
+			found = element;
+			return true;
+		}
+	}, context);
+	return found;
+};
+
+EPUBJS.core.findIndex = function(iterable, predicate, context) {
+	var found;
+	Array.prototype.some.call(iterable, function(element, index) {
+		var result = predicate.apply(this, arguments);
+		if (result) {
+			found = index;
+			return true;
+		}
+	}, context);
+	return found;
+};
+
+EPUBJS.core.remove = function(array, value) {
+	var index = array.indexOf(value);
+	if (index === -1) {
+		return [];
+	}
+	return array.splice(index, 1);
+};
+
 // Underscore
 EPUBJS.core.defaults = function(obj) {
   for (var i = 1, length = arguments.length; i < length; i++) {

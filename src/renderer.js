@@ -1,4 +1,4 @@
-EPUBJS.Renderer = function(renderMethod, hidden) {
+EPUBJS.Renderer = function(renderMethod, bufferSize, hidden) {
 	// Dom events to listen for
 	this.listenedEvents = ["keydown", "keyup", "keypressed", "mouseup", "mousedown", "click"];
 	this.upEvent = "mouseup";
@@ -8,21 +8,21 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 		this.upEvent = "touchend";
 		this.downEvent = "touchstart";
 	}
+
+	this.bufferSize = typeof bufferSize !== "number" ? 1 : Math.max(bufferSize, 1);
+
 	/**
 	* Setup a render method.
 	* Options are: Iframe
 	*/
 	if(renderMethod && typeof(EPUBJS.Render[renderMethod]) != "undefined"){
-		// Create a pool of renders so we can load the previous, current and
-		// next sets of chapters. Up to 2 chapters can be visible at a time. So,
-		// 2 * 3 = 6. We could probably load even more depending on memory
-		// availability.
+		// Create a pool of renders so it's possible for us to load the
+		// previous, current and next sets of chapters.
 		this.renders = [];
-		for (var i = 0; i < 6; i++) {
+		for (var i = 0; i < this.bufferSize; i++) {
 			this.renders.push(new EPUBJS.Render[renderMethod]());
 		}
-		this.firstVisibleRender = Math.floor((this.renders.length - 1) / 2);
-		this.visibleRenders = 1;
+		this.firstVisibleRender = 0;
 	} else {
 		console.error("Not a Valid Rendering Method");
 	}
@@ -109,16 +109,37 @@ EPUBJS.Renderer.prototype.initialize = function(element, width, height){
 	document.addEventListener("orientationchange", this.onResized.bind(this));
 };
 
+EPUBJS.Renderer.prototype.findRenderForChapter = function(chapter){
+	return EPUBJS.core.find(this.renders, function (render) {
+		return render.chapter && render.chapter.id === chapter.id;
+	}, this);
+};
+
+// We recycle the renders in our render pool. The only requisite for recycling
+// is that the elements be in the right order in the DOM (so an earlier page
+// correctly flows into the next). Therefore, sometimes we need to move 1 of
+// them back in the stack.
+EPUBJS.Renderer.prototype.sortRendersForChapters = function(chapters){
+    var chapterRenders = [];
+    var chapterIndices = [];
+    chapters.forEach(function (chapter) {
+		var render = this.findRenderForChapter(chapter);
+		var index = Array.prototype.indexOf.call(this.container.children, render);
+		chapterRenders.push(render);
+		chapterIndices.push(index);
+    }, this);
+    if (chapterIndices[0] > chapterIndices[1]) {
+		this.container.appendChild(chapterRenders[1].element);
+    }
+};
+
+
 /**
 * Display a chapter
 * Takes: chapter object, global layout settings
 * Returns: Promise with passed Renderer after pages has loaded
 */
-EPUBJS.Renderer.prototype.displayChapter = function(chapter, globalLayout){
-	// TODO: Update this to display a chapter inside a render and to
-	// subsequently push out and load in surrounding chapters as necessary.
-
-	var store = false;
+EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	if(this._moving) {
 		console.warning("Rendering In Progress");
         var deferred = new RSVP.defer();
@@ -129,17 +150,56 @@ EPUBJS.Renderer.prototype.displayChapter = function(chapter, globalLayout){
 		return deferred.promise;
 	}
 	this._moving = true;
-	// Get the url string from the chapter (may be from storage)
-	return chapter.render().
-		then(function(contents) {
+
+	// Determine the renders that already have loaded requested chapters,
+	// thereby captializing on chapter pre-loading, and assign the rest to load
+	// into avaiable renders.
+	var availableRenders = this.renders.slice();
+	var unloadedChapters = chapters.slice();
+	chapters.forEach(function(chapter) {
+		var render = this.findRenderForChapter(chapter);
+		if (render) {
+			EPUBJS.core.remove(availableRenders, render);
+			EPUBJS.core.remove(unloadedChapters, chapter);
+		}
+	}, this);
+
+	// Sort the chapters by their spine positions before assigning them to
+	// renders, so the renders are more likely to be in the right order in the
+	// DOM. We copy the array, because the orginal chapter ordering was
+	// prioritized by the most-important-to-load first.
+	var renderableChapters = unloadedChapters.slice();
+	renderableChapters.sort(function(a, b) {
+		return a.spinePos - b.spinePos;
+	}, this);
+
+	availableRenders.forEach(function(render, index) {
+		render.chapter = renderableChapters[index];
+	}, this);
+
+	this.currentChapters = chapters.slice(0, 2);
+	this.firstVisibleRender =
+		EPUBJS.core.findIndex(this.renders, function (render) {
+			return render.chapter.id === this.currentChapters[0].id;
+		}, this);
+
+	this.sortRendersForChapters(this.currentChapters);
+
+	// FIXME: Locking and toggling visibility negates some advantages of
+	// pre-loading... see if it's possible to un-lock this method, somehow.
+	this.visible(false);
+
+	var chapterRenderPromises = unloadedChapters.map(function(chapter) {
+		var render = this.findRenderForChapter(chapter);
+		return chapter.render().then(function(contents) {
 
 			// Unload the previous chapter listener
-			if(this.currentChapter) {
+			if(render.chapter && render.chapter.id !== chapter.id) {
 				this.trigger("renderer:chapterUnload");
 				this.currentChapter.unload(); // Remove stored blobs
 
-				if(this.getVisibleRender().window){
-					this.getVisibleRender().window.removeEventListener("resize", this.resized);
+				if(render.window){
+					render.window.removeEventListener("resize", this.resized);
 				}
 
 				this.removeEventListeners(this.getVisibleRender());
@@ -160,12 +220,15 @@ EPUBJS.Renderer.prototype.displayChapter = function(chapter, globalLayout){
 
 			this.layoutSettings = this.reconcileLayoutSettings(globalLayout, chapter.properties);
 
-			return this.load(contents, chapter.href);
+			return this.load(contents, chapter.href, render);
 
-		}.bind(this), function() {
-            this._moving = false;
-        }.bind(this));
+		}.bind(this));
+	}, this);
 
+	return RSVP.all(chapterRenderPromises).then(function () {
+		this._moving = false;
+		this.visible(true);
+	}.bind(this));
 };
 
 /**
@@ -174,18 +237,13 @@ EPUBJS.Renderer.prototype.displayChapter = function(chapter, globalLayout){
 * Returns: Promise with the rendered contents.
 */
 
-EPUBJS.Renderer.prototype.load = function(contents, url){
+EPUBJS.Renderer.prototype.load = function(contents, url, render){
 	var deferred = new RSVP.defer();
 	var loaded;
 
 	// Switch to the required layout method for the settings
 	this.layoutMethod = this.determineLayout(this.layoutSettings);
 	this.layout = new EPUBJS.Layout[this.layoutMethod]();
-
-	// TODO: Actually determine which render is appropriate to load into
-	var render = this.getVisibleRender();
-
-	this.visible(false, render);
 
 	render.load(contents, url).then(function(contents) {
 
@@ -215,9 +273,6 @@ EPUBJS.Renderer.prototype.load = function(contents, url){
 
 			this.afterDisplay();
 
-			this.visible(true, render);
-
-
 			deferred.resolve(this); //-- why does this return the renderer?
 
 		}.bind(this));
@@ -238,7 +293,7 @@ EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
 	// Format the contents using the current layout method
 	var formatted = this.layout.format(contents, render.width, render.height, this.gap);
 	render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
-	this.determineVisibleRenders();
+	this.updateRenderVisibility();
 
 	// window.addEventListener("orientationchange", this.onResized.bind(this), false);
 	if(!this.initWidth && !this.initHeight){
@@ -285,21 +340,29 @@ EPUBJS.Renderer.prototype.getVisibleRender = function() {
     return this.renders[this.firstVisibleRender];
 };
 
-EPUBJS.Renderer.prototype.determineVisibleRenders = function() {
+EPUBJS.Renderer.prototype.getVisibleRenders = function() {
+	var count;
 	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
-		this.visibleRenders = 2;
+		count = 2;
 	} else {
-		this.visibleRenders = 1;
+		count = 1;
 	}
-	// Allocate space for each render.
-	var lastVisibleRender = this.firstVisibleRender + this.visibleRenders - 1;
-	this.renders.forEach(function(render, index) {
-		var isVisible = this.firstVisibleRender <= index && index <= lastVisibleRender;
-		this.visible(isVisible, render);
-		var width = (1 / this.visibleRenders * 100) + "%";
+	var visibleChapters = this.currentChapters.slice(0, count);
+	return this.renders.filter(function(render) {
+		return EPUBJS.core.contains(visibleChapters, render.chapter);
+	}, this);
+};
+
+EPUBJS.Renderer.prototype.updateRenderVisibility = function() {
+    var visibleRenders = this.getVisibleRenders();
+	this.renders.forEach(function (render) {
+		var isVisible = EPUBJS.core.contains(visibleRenders, render);
+		render.visible(isVisible);
+		// Allocate space for each render.
+		var width = (1 / visibleRenders.length * 100) + "%";
 		var height = "100%";
 		render.resize(width, height);
-	}, this);
+	});
 };
 
 /**
@@ -409,7 +472,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 		this.spreads = spreads;
 		this.layoutMethod = this.determineLayout(this.layoutSettings);
 		this.layout = new EPUBJS.Layout[this.layoutMethod]();
-		this.determineVisibleRenders();
+		this.updateRenderVisibility();
 	}
 
 	// Reset pages
@@ -432,15 +495,15 @@ EPUBJS.Renderer.prototype.reformat = function(){
 };
 
 // Hide and show the render's container .
-EPUBJS.Renderer.prototype.visible = function(bool, render){
+EPUBJS.Renderer.prototype.visible = function(bool){
 	if(typeof(bool) === "undefined") {
-		return render.element.style.display;
+		return this.container.style.visibility;
 	}
 
 	if(bool === true && !this.hidden){
-		render.element.style.display = "inline";
+		this.container.style.visibility = "visible";
 	}else if(bool === false){
-		render.element.style.display = "none";
+		this.container.style.visibility = "hidden";
 	}
 };
 
