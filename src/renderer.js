@@ -525,8 +525,6 @@ EPUBJS.Renderer.prototype.remove = function() {
 
 //-- STYLES
 
-// TODO: Need to handle each render
-
 EPUBJS.Renderer.prototype.applyStyles = function(styles) {
 	for (var style in styles) {
 		this.renders.forEach(function(render) {
@@ -1332,8 +1330,6 @@ EPUBJS.Renderer.prototype.removeEventListeners = function(render){
 EPUBJS.Renderer.prototype.triggerEvent = function(e){
 	this.trigger("renderer:"+e.type, e);
 };
-
-// TODO: Handle each render the selection handlers
 
 EPUBJS.Renderer.prototype.addSelectionListeners = function(render){
 	render.selectionListener = function(e) {
