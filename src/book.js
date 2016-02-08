@@ -538,17 +538,22 @@ EPUBJS.Book.prototype.loadChange = function(url){
 		console.warn("Miss Match", uri.path, this.currentChapter.absolute);
 		// this.goto(uri.filename);
 
-		// Set the current chapter to what is being displayed
-		spinePos = this.spineIndexByURL[uri.filename];
-		chapter = new EPUBJS.Chapter(this.spine[spinePos], this.store);
-		this.currentChapter = chapter;
+		// The following block of code is temporarily disabled because more than
+		// one chapter can be loaded at a time, so changing chapters is not
+		// necessary in case of a "miss match". Not sure if there a legitimate
+		// reason this could happen or if it was just defensive coding.
 
-		// setup the renderer with the displayed chapter
-		this.renderer.currentChapter = chapter;
-		this.renderer.afterLoad(this.renderer.render.docEl);
-		this.renderer.beforeDisplay(function () {
-			this.renderer.afterDisplay();
-		}.bind(this));
+		// // Set the current chapter to what is being displayed
+		// spinePos = this.spineIndexByURL[uri.filename];
+		// chapter = new EPUBJS.Chapter(this.spine[spinePos], this.store);
+		// this.currentChapter = chapter;
+
+		// // setup the renderer with the displayed chapter
+		// this.renderer.currentChapter = chapter;
+		// this.renderer.afterLoad(this.renderer.render.docEl);
+		// this.renderer.beforeDisplay(function () {
+		// 	this.renderer.afterDisplay();
+		// }.bind(this));
 
 	} else if(!this._rendering) {
 		this.renderer.reformat();
