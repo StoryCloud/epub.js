@@ -787,27 +787,12 @@ EPUBJS.Book.prototype.restore = function(identifier){
 
 };
 
-// Pivot around the "middle" chapter (`chap`), creating a list of chapters with
-// a length up to `this.bufferSize`. Typically the chapters alternate around the
+// Pivot around the "middle" chapter (`pos`), creating a list of chapters with a
+// length up to `this.bufferSize`. Typically the chapters alternate around the
 // middle, but if there are no more chapters on the left or right sides, we
 // attempt to fill the remainder of the list with chapters from the opposite
 // side, in an effort to use as many of the renderer's buffers as possible.
-EPUBJS.Book.prototype.getSurroundingChapters = function(chap){
-	var pos, cfi;
-
-	if (EPUBJS.core.isNumber(chap)) {
-		pos = chap;
-	} else {
-		cfi = new EPUBJS.EpubCFI(chap);
-		pos = cfi.spinePos;
-	}
-
-	if (pos < 0 || pos >= this.spine.length) {
-		console.warn("Not A Valid Location");
-		pos = 0;
-		cfi = false;
-	}
-
+EPUBJS.Book.prototype.getSurroundingChapters = function(pos){
 	var chapters = [];
 
 	// Move in `step` direction (negative or positive) by a quantity of `delta`
@@ -895,7 +880,20 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 		return defer.promise;
 	}
 
-	var chapters = this.getSurroundingChapters(chap);
+	if (EPUBJS.core.isNumber(chap)) {
+		pos = chap;
+	} else {
+		cfi = new EPUBJS.EpubCFI(chap);
+		pos = cfi.spinePos;
+	}
+
+	if (pos < 0 || pos >= this.spine.length) {
+		console.warn("Not A Valid Location");
+		pos = 0;
+		cfi = false;
+	}
+
+	var chapters = this.getSurroundingChapters(pos);
 
 	this._rendering = true;
 
@@ -944,8 +942,8 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 
 	}, function(error) {
 		// handle errors in either of the two requests
-		console.error("Could not load Chapter: "+ chapter.absolute, error);
-		book.trigger("book:chapterLoadFailed", chapter.absolute);
+		console.error("Could not load Chapter: "+ chapters[0].absolute, error);
+		book.trigger("book:chapterLoadFailed", chapters[0].absolute);
 		book._rendering = false;
 		defer.reject(error);
 	});
