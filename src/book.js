@@ -535,13 +535,13 @@ EPUBJS.Book.prototype.loadChange = function(url){
 	var spinePos, chapter;
 
 	if(uri.path != chapterUri.path){
-		console.warn("Miss Match", uri.path, this.currentChapter.absolute);
-		// this.goto(uri.filename);
-
 		// The following block of code is temporarily disabled because more than
 		// one chapter can be loaded at a time, so changing chapters is not
 		// necessary in case of a "miss match". Not sure if there a legitimate
 		// reason this could happen or if it was just defensive coding.
+
+		// console.warn("Miss Match", uri.path, this.currentChapter.absolute);
+		// // this.goto(uri.filename);
 
 		// // Set the current chapter to what is being displayed
 		// spinePos = this.spineIndexByURL[uri.filename];
