@@ -108,6 +108,9 @@ body {
   z-index: 2;
   position: relative;
   overflow: hidden;
+  /* Align multiple renders to the center (for multiple pages of a
+     fixed-layout book) */
+  text-align: center;
 }
 
 #viewer iframe {
