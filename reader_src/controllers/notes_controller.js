@@ -55,7 +55,7 @@ EPUBJS.reader.NotesController = function() {
 			offset += 1; // After the period
 		}
 		
-		cfi = epubcfi.generateCfiFromTextNode(textNode, offset, book.renderer.currentChapter.cfiBase);
+		cfi = epubcfi.generateCfiFromTextNode(textNode, offset, book.renderer.getCurrentChapter().cfiBase);
 
 		annotation = {
 			annotatedAt: new Date(),
@@ -265,7 +265,7 @@ EPUBJS.reader.NotesController = function() {
 	
 	
 	renderer.registerHook("beforeChapterDisplay", function(callback, renderer){
-		var chapter = renderer.currentChapter;
+		var chapter = renderer.getCurrentChapter();
 		annotations.forEach(function(note) {
 			var cfi = epubcfi.parse(note.anchor);
 			if(cfi.spinePos === chapter.spinePos) {

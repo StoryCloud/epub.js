@@ -43,10 +43,10 @@ EPUBJS.Hooks.register("beforeChapterDisplay").annotate = function(callback, chap
             .addPlugin('Store', {
               prefix: 'http://annotateit.org/api',//'http://localhost:5000',
               loadFromSearch: {
-                uri: chapter.currentChapter.href
+                uri: chapter.getCurrentChapter().href
               },
               annotationData: {
-                uri: chapter.currentChapter.href
+                uri: chapter.getCurrentChapter().href
               }
             });
           

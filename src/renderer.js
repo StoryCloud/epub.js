@@ -152,15 +152,15 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	this._moving = true;
 
 	// Determine the renders that already have loaded requested chapters,
-	// thereby captializing on chapter pre-loading, and assign the rest to load
+	// thereby captializing on chapter pre-loading, and await the rest to load
 	// into avaiable renders.
 	var availableRenders = this.renders.slice();
-	var unloadedChapters = chapters.slice();
+	var awaitedChapters = chapters.slice();
 	chapters.forEach(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		if (render) {
 			EPUBJS.core.remove(availableRenders, render);
-			EPUBJS.core.remove(unloadedChapters, chapter);
+			EPUBJS.core.remove(awaitedChapters, chapter);
 		}
 	}, this);
 
@@ -168,12 +168,13 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	// renders, so the renders are more likely to be in the right order in the
 	// DOM. We copy the array, because the orginal chapter ordering was
 	// prioritized by the most-important-to-load first.
-	var renderableChapters = unloadedChapters.slice();
+	var renderableChapters = awaitedChapters.slice();
 	renderableChapters.sort(function(a, b) {
 		return a.spinePos - b.spinePos;
 	}, this);
 
 	availableRenders.forEach(function(render, index) {
+		render.previousChapter = render.chapter;
 		render.chapter = renderableChapters[index];
 	}, this);
 
@@ -189,34 +190,28 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	// pre-loading... see if it's possible to un-lock this method, somehow.
 	this.visible(false);
 
-	var chapterRenderPromises = unloadedChapters.map(function(chapter) {
+	var chapterRenderPromises = awaitedChapters.map(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		return chapter.render().then(function(contents) {
 
 			// Unload the previous chapter listener
-			if(render.chapter && render.chapter.id !== chapter.id) {
+			if(render.previousChapter && render.previousChapter.id !== chapter.id) {
 				this.trigger("renderer:chapterUnload");
-				this.currentChapter.unload(); // Remove stored blobs
+				render.previousChapter.unload(); // Remove stored blobs
 
 				if(render.window){
 					render.window.removeEventListener("resize", this.resized);
 				}
 
-				this.removeEventListeners(this.getVisibleRender());
-				this.removeSelectionListeners(this.getVisibleRender());
+				this.removeEventListeners(render);
+				this.removeSelectionListeners(render);
 				this.trigger("renderer:chapterUnloaded");
 				this.contents = null;
 				this.doc = null;
 				this.pageMap = null;
 			}
 
-			// TODO: We don't have just one chapter anymore,
-			// probably remove this.
-			this.currentChapter = chapter;
-
 			this.chapterPos = 1;
-
-			this.currentChapterCfiBase = chapter.cfiBase;
 
 			this.layoutSettings = this.reconcileLayoutSettings(globalLayout, chapter.properties);
 
@@ -271,7 +266,7 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 		//-- Trigger registered hooks before displaying
 		this.beforeDisplay(function(){
 
-			this.afterDisplay();
+			this.afterDisplay(render.chapter);
 
 			deferred.resolve(this); //-- why does this return the renderer?
 
@@ -283,7 +278,7 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 };
 
 EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
-	this.currentChapter.setDocument(render.document);
+	render.chapter.setDocument(render.document);
 
 	// TODO: Remove these variables, maybe with back-compat getters, but
 	// they don't seem to be necessary.
@@ -305,10 +300,10 @@ EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
 
 };
 
-EPUBJS.Renderer.prototype.afterDisplay = function(contents) {
+EPUBJS.Renderer.prototype.afterDisplay = function(chapter) {
 
 	var pages = this.layout.calculatePages();
-	var msg = this.currentChapter;
+	var msg = chapter;
 	var queued = this._q.length();
 	this._moving = false;
 
@@ -332,6 +327,12 @@ EPUBJS.Renderer.prototype.loaded = function(url){
 	// var uri = EPUBJS.core.uri(url);
 	// var relative = uri.path.replace(book.bookUrl, '');
 	// console.log(url, uri, relative);
+};
+
+EPUBJS.Renderer.prototype.getCurrentChapter = function () {
+	if (this.currentChapters) {
+		return this.currentChapters[0];
+	}
 };
 
 // TODO: Remove this method, it's just an intermediate helper method for
@@ -452,7 +453,7 @@ EPUBJS.Renderer.prototype.updatePages = function(layout){
 		this.displayedPages = this.pageMap.length;
 	}
 
-	this.currentChapter.pages = this.pageMap.length;
+	this.getCurrentChapter().pages = this.pageMap.length;
 
 	this._q.flush();
 };
@@ -772,7 +773,7 @@ EPUBJS.Renderer.prototype.sprint = function(root, func) {
 EPUBJS.Renderer.prototype.mapPage = function(){
 	var renderer = this;
 	var map = [];
-	var root = this.getVisibleRender().getBaseElement(); // TODO: Which render??
+	var root = this.getVisibleRender().getBaseElement();
 	var page = 1;
 	var width = this.layout.colWidth + this.layout.gap;
 	var offset = this.getVisibleRender().pageWidth * (this.chapterPos-1);
@@ -830,7 +831,7 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 			if(pos.left + pos.width < limit) {
 				if(!map[page-1]){
 					range.collapse(true);
-					cfi = renderer.currentChapter.cfiFromRange(range);
+					cfi = renderer.getCurrentChapter().cfiFromRange(range);
 					// map[page-1].start = cfi;
 					result = map.push({ start: cfi, end: null });
 				}
@@ -844,12 +845,12 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 
 				if(prevRange){
 					prevRange.collapse(false);
-					cfi = renderer.currentChapter.cfiFromRange(prevRange);
+					cfi = renderer.getCurrentChapter().cfiFromRange(prevRange);
 					map[map.length-1].end = cfi;
 				}
 
 				range.collapse(true);
-				cfi = renderer.currentChapter.cfiFromRange(range);
+				cfi = renderer.getCurrentChapter().cfiFromRange(range);
 				result = map.push({
 						start: cfi,
 						end: null
@@ -896,7 +897,7 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 
 	if(prevRange){
 		prevRange.collapse(false);
-		cfi = renderer.currentChapter.cfiFromRange(prevRange);
+		cfi = renderer.getCurrentChapter().cfiFromRange(prevRange);
 		map[map.length-1].end = cfi;
 	}
 
@@ -905,12 +906,12 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 		startRange = this.doc.createRange();
 		startRange.selectNodeContents(root);
 		startRange.collapse(true);
-		startCfi = renderer.currentChapter.cfiFromRange(startRange);
+		startCfi = renderer.getCurrentChapter().cfiFromRange(startRange);
 
 		endRange = this.doc.createRange();
 		endRange.selectNodeContents(root);
 		endRange.collapse(false);
-		endCfi = renderer.currentChapter.cfiFromRange(endRange);
+		endCfi = renderer.getCurrentChapter().cfiFromRange(endRange);
 
 
 		map.push({ start: startCfi, end: endCfi });

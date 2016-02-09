@@ -95,7 +95,7 @@ asyncTest("Go to chapter 10 at restore start", 2, function() {
 		
 
 		start();
-		equal( Book.currentChapter.id, "xchapter_010", "on chapter 10");
+		equal( Book.getCurrentChapter().id, "xchapter_010", "on chapter 10");
 
 	};
 
@@ -120,7 +120,7 @@ asyncTest("Go to chapter 20 from queue", 2, function() {
 		equal( $iframe.length, 1, "iframe added successfully" );
 
 		start();
-		equal( Book.currentChapter.id, "xchapter_020", "on chapter 20");
+		equal( Book.getCurrentChapter().id, "xchapter_020", "on chapter 20");
 
 	};
 

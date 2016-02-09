@@ -302,7 +302,7 @@ EPUBJS.Reader.prototype.hashChanged = function(){
 
 EPUBJS.Reader.prototype.selectedRange = function(range){
 	var epubcfi = new EPUBJS.EpubCFI();
-	var cfi = epubcfi.generateCfiFromRangeAnchor(range, this.book.renderer.currentChapter.cfiBase);
+	var cfi = epubcfi.generateCfiFromRangeAnchor(range, this.book.renderer.getCurrentChapter().cfiBase);
 	var cfiFragment = "#"+cfi;
 
 	// Update the History Location

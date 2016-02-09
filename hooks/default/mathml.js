@@ -1,7 +1,7 @@
 EPUBJS.Hooks.register("beforeChapterDisplay").mathml = function(callback, renderer){
 
-    // check of currentChapter properties contains 'mathml'
-    if(renderer.currentChapter.manifestProperties.indexOf("mathml") !== -1 ){
+    // check of current chapter properties contains 'mathml'
+    if(renderer.getCurrentChapter().manifestProperties.indexOf("mathml") !== -1 ){
         
         // Assign callback to be inside iframe window
         renderer.render.iframe.contentWindow.mathmlCallback = callback;

@@ -522,42 +522,11 @@ EPUBJS.Book.prototype.listenToRenderer = function(renderer){
 		}
 	}.bind(this));
 
-	renderer.on("render:loaded", this.loadChange.bind(this));
-};
-
-// Listens for load events from the Renderer and checks against the current chapter
-// Prevents the Render from loading a different chapter when back button is pressed
-EPUBJS.Book.prototype.loadChange = function(url){
-	// TODO: Need to assume multiple chapters here
-
-	var uri = EPUBJS.core.uri(url);
-	var chapterUri = EPUBJS.core.uri(this.currentChapter.absolute);
-	var spinePos, chapter;
-
-	if(uri.path != chapterUri.path){
-		// The following block of code is temporarily disabled because more than
-		// one chapter can be loaded at a time, so changing chapters is not
-		// necessary in case of a "miss match". Not sure if there a legitimate
-		// reason this could happen or if it was just defensive coding.
-
-		// console.warn("Miss Match", uri.path, this.currentChapter.absolute);
-		// // this.goto(uri.filename);
-
-		// // Set the current chapter to what is being displayed
-		// spinePos = this.spineIndexByURL[uri.filename];
-		// chapter = new EPUBJS.Chapter(this.spine[spinePos], this.store);
-		// this.currentChapter = chapter;
-
-		// // setup the renderer with the displayed chapter
-		// this.renderer.currentChapter = chapter;
-		// this.renderer.afterLoad(this.renderer.render.docEl);
-		// this.renderer.beforeDisplay(function () {
-		// 	this.renderer.afterDisplay();
-		// }.bind(this));
-
-	} else if(!this._rendering) {
-		this.renderer.reformat();
-	}
+	renderer.on("render:loaded", function () {
+		if(!this._rendering) {
+			this.renderer.reformat();
+		}
+	}.bind(this));
 };
 
 EPUBJS.Book.prototype.unlistenToRenderer = function(renderer){
@@ -912,8 +881,7 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 
 	}
 
-	// TODO: Don't have a "currentChapter"
-	book.currentChapter = chapters[0];
+	book.currentChapters = chapters;
 
 	render = book.renderer.displayChapters(chapters, this.globalLayoutProperties);
 	if(cfi) {
@@ -1079,7 +1047,7 @@ EPUBJS.Book.prototype.gotoCfi = function(cfiString, defer){
 	promise = deferred.promise;
 	this._moving = true;
 	//-- If same chapter only stay on current chapter
-	if(this.currentChapter && this.spinePos === spinePos){
+	if(this.spinePos === spinePos){
 		this.renderer.gotoCfi(cfi);
 		this._moving = false;
 		deferred.resolve(this.renderer.currentLocationCfi);
@@ -1135,13 +1103,13 @@ EPUBJS.Book.prototype.gotoHref = function(url, defer){
 
 	//-- If link fragment only stay on current chapter
 	if(!chapter){
-		spinePos = this.currentChapter ? this.currentChapter.spinePos : 0;
+		spinePos = this.spinePos;
 	}
 
 	//-- Check that URL is present in the index, or stop
 	if(typeof(spinePos) != "number") return false;
 
-	if(!this.currentChapter || spinePos != this.currentChapter.spinePos){
+	if(spinePos !== this.spinePos){
 		//-- Load new chapter if different than current
 		return this.displayChapter(spinePos).then(function(){
 				if(section){
@@ -1361,7 +1329,11 @@ EPUBJS.Book.prototype.destroy = function() {
 
 	window.removeEventListener("beforeunload", this.unload);
 
-	if(this.currentChapter) this.currentChapter.unload();
+	if(this.currentChapters) {
+		this.currentChapters.forEach(function (chapter) {
+			chapter.unload();
+		}, this);
+	}
 
 	this.unload();
 
