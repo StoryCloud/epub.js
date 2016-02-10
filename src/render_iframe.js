@@ -118,9 +118,13 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 
 	this.iframe.width = width;
 	// Get the fractional height and width of the iframe
-	// Default to orginal if bounding rect is 0
-	this.width = this.iframe.getBoundingClientRect().width || width;
-	this.height = this.iframe.getBoundingClientRect().height || height;
+	var rect = this.iframe.getBoundingClientRect();
+	if (rect.width) {
+		this.width = rect.width;
+	}
+	if (rect.height) {
+		this.height = rect.height;
+	}
 
 	// Set a maximum width so the frame will always be just as wide as the
 	// document, resulting in the pages sitting right next to each other.
