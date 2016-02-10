@@ -178,7 +178,18 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		render.chapter = renderableChapters[index];
 	}, this);
 
-	this.currentChapters = chapters.slice(0, 2);
+	// Try to recycle an existing chapter object because it might have a
+	// document object associated with it, which might be needed later when
+	// mapping a page. (Chapter objects are created ad-hoc.)
+	var possibleCurrentChapters = chapters.slice(0, 2);
+	this.currentChapters = possibleCurrentChapters.map(function (chapter) {
+		var render = this.findRenderForChapter(chapter);
+		if (render && render.chapter.id === chapter.id) {
+			return render.chapter;
+		}
+		return chapter;
+	}, this);
+
 	this.firstVisibleRender =
 		EPUBJS.core.findIndex(this.renders, function (render) {
 			return render.chapter.id === this.currentChapters[0].id;
