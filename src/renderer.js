@@ -341,16 +341,20 @@ EPUBJS.Renderer.prototype.getVisibleRender = function() {
     return this.renders[this.firstVisibleRender];
 };
 
-EPUBJS.Renderer.prototype.getVisibleRenders = function() {
-	var count;
+EPUBJS.Renderer.prototype.getVisibleChapters = function () {
+    var count;
 	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
 		count = 2;
 	} else {
 		count = 1;
 	}
-	var visibleChapters = this.currentChapters.slice(0, count);
-	return this.renders.filter(function(render) {
-		return EPUBJS.core.contains(visibleChapters, render.chapter);
+	return this.currentChapters.slice(0, count);
+};
+
+EPUBJS.Renderer.prototype.getVisibleRenders = function() {
+	var visibleChapters = this.getVisibleChapters();
+	return visibleChapters.map(function(chapter) {
+		return this.findRenderForChapter(chapter);
 	}, this);
 };
 
