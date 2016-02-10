@@ -136,8 +136,14 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 
 EPUBJS.Render.Iframe.prototype.resized = function(e){
 	// Get the fractional height and width of the iframe
-	this.width = this.iframe.getBoundingClientRect().width;
-	this.height = this.iframe.getBoundingClientRect().height;
+	var rect = this.iframe.getBoundingClientRect();
+	// >= 1 because hidden renders were sometimes has a "0.5" width in Chrome...
+	if (rect.width >= 1) {
+		this.width = rect.width;
+	}
+	if (rect.height >= 1) {
+		this.height = rect.height;
+	}
 };
 
 EPUBJS.Render.Iframe.prototype.totalWidth = function(){
