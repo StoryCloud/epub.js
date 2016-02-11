@@ -302,7 +302,7 @@ EPUBJS.Reader.prototype.hashChanged = function(){
 
 EPUBJS.Reader.prototype.selectedRange = function(range){
 	var epubcfi = new EPUBJS.EpubCFI();
-	var cfi = epubcfi.generateCfiFromRangeAnchor(range, this.book.renderer.currentChapter.cfiBase);
+	var cfi = epubcfi.generateCfiFromRangeAnchor(range, this.book.renderer.getCurrentChapter().cfiBase);
 	var cfiFragment = "#"+cfi;
 
 	// Update the History Location
@@ -316,6 +316,7 @@ EPUBJS.Reader.prototype.selectedRange = function(range){
 
 //-- Enable binding events to reader
 RSVP.EventTarget.mixin(EPUBJS.Reader.prototype);
+
 EPUBJS.reader.BookmarksController = function() {
 	var reader = this;
 	var book = this.book;
@@ -569,7 +570,7 @@ EPUBJS.reader.NotesController = function() {
 			offset += 1; // After the period
 		}
 		
-		cfi = epubcfi.generateCfiFromTextNode(textNode, offset, book.renderer.currentChapter.cfiBase);
+		cfi = epubcfi.generateCfiFromTextNode(textNode, offset, book.renderer.getCurrentChapter().cfiBase);
 
 		annotation = {
 			annotatedAt: new Date(),
@@ -779,7 +780,7 @@ EPUBJS.reader.NotesController = function() {
 	
 	
 	renderer.registerHook("beforeChapterDisplay", function(callback, renderer){
-		var chapter = renderer.currentChapter;
+		var chapter = renderer.getCurrentChapter();
 		annotations.forEach(function(note) {
 			var cfi = epubcfi.parse(note.anchor);
 			if(cfi.spinePos === chapter.spinePos) {
@@ -799,6 +800,7 @@ EPUBJS.reader.NotesController = function() {
 		"hide" : hide
 	};
 };
+
 EPUBJS.reader.ReaderController = function(book) {
 	var $main = $("#main"),
 			$divider = $("#divider"),
