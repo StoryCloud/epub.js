@@ -232,6 +232,11 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	}, this);
 
 	return RSVP.all(chapterRenderPromises).then(function () {
+		// Guarantee that render visibility updates (in the case of no new
+		// chapters needing to be loaded).
+		if (chapterRenderPromises.length === 0) {
+			this.updateRenderVisibility();
+		}
 		this._moving = false;
 		this.visible(true);
 	}.bind(this));
@@ -354,7 +359,9 @@ EPUBJS.Renderer.prototype.getVisibleRender = function() {
 
 EPUBJS.Renderer.prototype.getVisibleChapters = function () {
     var count;
-	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
+	if (this.layoutSettings.layout === "pre-paginated" &&
+		this.spreads &&
+		this.currentChapters[0].spinePos !== 0) {
 		count = 2;
 	} else {
 		count = 1;
