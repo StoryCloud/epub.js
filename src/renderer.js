@@ -390,16 +390,31 @@ EPUBJS.Renderer.prototype.getVisibleRenders = function() {
 	}, this);
 };
 
+EPUBJS.Renderer.prototype.resizeRender = function (render) {
+	var visibleRenders = this.getVisibleRenders();
+	// Allocate space for each render.
+	var width;
+	if (this.layoutSettings.layout === "pre-paginated") {
+		// TODO: This looks very similar to the code in Layout.Fixed... see if
+		// we can consolidate it.
+		var widthScale = this.width / visibleRenders.length / render.pageWidth;
+		var heightScale = (this.height / render.pageHeight);
+		var scale = widthScale < heightScale ? widthScale : heightScale;
+		width = Math.floor(render.pageWidth * scale) * 0.95;
+	} else {
+		width = (1 / visibleRenders.length * 100) + "%";
+	}
+	var height = "100%";
+	render.resize(width, height);
+};
+
 EPUBJS.Renderer.prototype.updateRenderVisibility = function() {
     var visibleRenders = this.getVisibleRenders();
 	this.renders.forEach(function (render) {
 		var isVisible = EPUBJS.core.contains(visibleRenders, render);
 		render.visible(isVisible);
-		// Allocate space for each render.
-		var width = (1 / visibleRenders.length * 100) + "%";
-		var height = "100%";
-		render.resize(width, height);
-	});
+		this.resizeRender(render);
+	}, this);
 };
 
 /**
@@ -512,6 +527,12 @@ EPUBJS.Renderer.prototype.reformat = function(){
 		this.spreads = spreads;
 		this.determineLayout();
 		this.updateRenderVisibility();
+	} else {
+		// updateRenderVisibility normally calls this, make sure we still do
+		// even if there are spreads.
+		this.renders.forEach(function (render) {
+			this.resizeRender(render);
+		}, this);
 	}
 
 	// Reset pages
