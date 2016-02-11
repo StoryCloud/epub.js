@@ -266,16 +266,14 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 	var loaded;
 
 	// Switch to the required layout method for the settings
-	this.layoutMethod = this.determineLayout(this.layoutSettings);
-	this.layout = new EPUBJS.Layout[this.layoutMethod]();
+	this.determineLayout();
 
 	render.load(contents, url).then(function(contents) {
 
 		// Duck-type fixed layout books.
 		if (EPUBJS.Layout.isFixedLayout(contents)) {
 			this.layoutSettings.layout = "pre-paginated";
-			this.layoutMethod = this.determineLayout(this.layoutSettings);
-			this.layout = new EPUBJS.Layout[this.layoutMethod]();
+			this.determineLayout();
 		}
 		render.setLayout(this.layoutSettings.layout);
 
@@ -441,7 +439,9 @@ EPUBJS.Renderer.prototype.reconcileLayoutSettings = function(global, chapter){
 * Takes: Layout settings object
 * Returns: String of appropriate for EPUBJS.Layout function
 */
-EPUBJS.Renderer.prototype.determineLayout = function(settings){
+EPUBJS.Renderer.prototype.determineLayout = function(){
+	var settings = this.layoutSettings;
+
 	// Default is layout: reflowable & spread: auto
 	var spreads = this.determineSpreads(this.minSpreadWidth);
 	var layoutMethod = spreads ? "ReflowableSpreads" : "Reflowable";
@@ -470,7 +470,8 @@ EPUBJS.Renderer.prototype.determineLayout = function(settings){
 		render.scroll(scroll);
 	}, this);
 	this.trigger("renderer:spreads", spreads);
-	return layoutMethod;
+
+	this.layout = new EPUBJS.Layout[layoutMethod]();
 };
 
 // Shortcut to trigger the hook before displaying the chapter
@@ -509,8 +510,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 	// Only re-layout if the spreads have switched
 	if(spreads != this.spreads){
 		this.spreads = spreads;
-		this.layoutMethod = this.determineLayout(this.layoutSettings);
-		this.layout = new EPUBJS.Layout[this.layoutMethod]();
+		this.determineLayout();
 		this.updateRenderVisibility();
 	}
 
