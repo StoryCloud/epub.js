@@ -806,7 +806,7 @@ EPUBJS.Book.prototype.getSurroundingChapters = function(pos){
 		if (!(leftEntry = seekEntry(leftStep, delta, first))) {
 			entry = seekEntry(rightStep, i - pos);
 		} else if (!(rightEntry = seekEntry(rightStep, delta, first))) {
-			entry = seekEntry(leftStep, (this.bufferSize - 1) - i + pos);
+			entry = seekEntry(leftStep, i - (this.spine.length - 1 - pos));
 		} else {
 			var direction = i % 2 === 0 ? 'left' : 'right';
 			entry = direction === 'left' ? leftEntry : rightEntry;
