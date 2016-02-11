@@ -188,6 +188,19 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 			return render.chapter;
 		}
 		return chapter;
+	}, this).filter(function (chapter, index, chapters) {
+		// If the first chapter is the first current chapter, because it might
+		// the cover of the book, it should be the only current chapter.
+		if (chapters[0].spinePos === 0) {
+			return index === 0;
+		}
+		// A chapter coming before an earlier chapter cannot possibly come after
+		// that chapter (which could happen if on the last chapter), so filter
+		// those out.
+		var chaptersBefore = chapters.slice(0, index);
+		return !chaptersBefore.some(function (chapterBefore) {
+			return chapterBefore.spinePos > chapter.spinePos;
+		});
 	}, this);
 
 	this.firstVisibleRender =
@@ -357,15 +370,18 @@ EPUBJS.Renderer.prototype.getVisibleRender = function() {
     return this.renders[this.firstVisibleRender];
 };
 
-EPUBJS.Renderer.prototype.getVisibleChapters = function () {
+EPUBJS.Renderer.prototype.getMaximumVisibleChapters = function () {
     var count;
-	if (this.layoutSettings.layout === "pre-paginated" &&
-		this.spreads &&
-		this.currentChapters[0].spinePos !== 0) {
+	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
 		count = 2;
 	} else {
 		count = 1;
 	}
+	return count;
+};
+
+EPUBJS.Renderer.prototype.getVisibleChapters = function () {
+    var count = this.getMaximumVisibleChapters();
 	return this.currentChapters.slice(0, count);
 };
 
