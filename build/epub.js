@@ -6349,12 +6349,14 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	// thereby captializing on chapter pre-loading, and await the rest to load
 	// into avaiable renders.
 	var availableRenders = this.renders.slice();
+	var unavailableRenders = [];
 	var awaitedChapters = chapters.slice();
 	chapters.forEach(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		if (render) {
 			EPUBJS.core.remove(availableRenders, render);
 			EPUBJS.core.remove(awaitedChapters, chapter);
+			unavailableRenders.push(render);
 		}
 	}, this);
 
@@ -6371,6 +6373,13 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		render.previousChapter = render.chapter;
 		render.chapter = renderableChapters[index];
 	}, this);
+
+	// Reset the other render positions, since they are recycled and if we
+	// navigated away from them they'd maintain their positions and mess up the
+	// mapPage calculations.
+	unavailableRenders.forEach(function (render) {
+		render.page(1);
+	});
 
 	// Try to recycle an existing chapter object because it might have a
 	// document object associated with it, which might be needed later when
@@ -6523,12 +6532,11 @@ EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
 
 EPUBJS.Renderer.prototype.afterDisplay = function(chapter) {
 
-	var pages = this.layout.calculatePages();
 	var msg = chapter;
 	var queued = this._q.length();
 	this._moving = false;
 
-	this.updatePages(pages);
+	this.updatePages();
 
 	this.visibleRangeCfi = this.getVisibleRangeCfi();
 	this.currentLocationCfi = this.visibleRangeCfi.start;
@@ -6688,12 +6696,10 @@ EPUBJS.Renderer.prototype.beforeDisplay = function(callback, renderer){
 	this.triggerHooks("beforeChapterDisplay", callback, this);
 };
 
-// Update the renderer with the information passed by the layout
-EPUBJS.Renderer.prototype.updatePages = function(layout){
+EPUBJS.Renderer.prototype.updatePages = function(){
 	// TODO: Needs to handle the pages of multiple chapters
 
 	this.pageMap = this.mapPage();
-	// this.displayedPages = layout.displayedPages;
 
 	if (this.spreads) {
 		this.displayedPages = Math.ceil(this.pageMap.length / 2);
@@ -6709,7 +6715,6 @@ EPUBJS.Renderer.prototype.updatePages = function(layout){
 // Apply the layout again and jump back to the previous cfi position
 EPUBJS.Renderer.prototype.reformat = function(){
 	var renderer = this;
-	var pages;
 	var spreads;
 
 	if(!this.contents) return;
@@ -6738,9 +6743,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
 	}, this);
 
-	// TODO: Needs to handle multiple chapters
-	pages = renderer.layout.calculatePages();
-	renderer.updatePages(pages);
+	renderer.updatePages();
 
 	//-- Go to current page after formating
 	if(renderer.currentLocationCfi){
@@ -6998,19 +7001,18 @@ EPUBJS.Renderer.prototype.textSprint = function(root, func) {
 		treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
 			acceptNode: filterEmpty
 		}, false);
-		while ((node = treeWalker.nextNode())) {
-			func(node);
-		}
+		node = treeWalker.nextNode(); // IE won't throw an error until calling this
 	} catch (e) {
 		// IE doesn't accept the object, just wants a function
 		// https://msdn.microsoft.com/en-us/library/ff974820(v=vs.85).aspx
 		treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, filterEmpty, false);
-		while ((node = treeWalker.nextNode())) {
-			func(node);
-		}
+		node = treeWalker.nextNode();
 	}
 
-
+	while (node) {
+		func(node);
+		node = treeWalker.nextNode();
+	}
 
 };
 
