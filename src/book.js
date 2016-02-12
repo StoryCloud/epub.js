@@ -94,7 +94,7 @@ EPUBJS.Book = function(options){
 	// Up to 2 chapters can be displayed at a time. And we also want to pre-load
 	// the previous and next sets of chapters. 2 * 3 = 6
 	this.bufferSize = 6;
-	this.renderer = new EPUBJS.Renderer(this.settings.render_method, this.bufferSize);
+	this.renderer = new EPUBJS.Renderer(this.settings.render_method);
 	//-- Set the width at which to switch from spreads to single pages
 	this.renderer.setMinSpreadWidth(this.settings.minSpreadWidth);
 	this.renderer.setGap(this.settings.gap);
@@ -357,7 +357,7 @@ EPUBJS.Book.prototype.createHiddenRender = function(renderer, _width, _height) {
 // Generates the pageList array by loading every chapter and paging through them
 EPUBJS.Book.prototype.generatePageList = function(width, height, flag){
 	var pageList = [];
-	var pager = new EPUBJS.Renderer(this.settings.render_method, void 0, false); //hidden
+	var pager = new EPUBJS.Renderer(this.settings.render_method, false); //hidden
 	var hiddenContainer = this.createHiddenRender(pager, width, height);
 	var deferred = new RSVP.defer();
 	var spinePos = -1;

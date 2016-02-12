@@ -1,4 +1,4 @@
-EPUBJS.Renderer = function(renderMethod, bufferSize, hidden) {
+EPUBJS.Renderer = function(renderMethod, hidden) {
 	// Dom events to listen for
 	this.listenedEvents = ["keydown", "keyup", "keypressed", "mouseup", "mousedown", "click"];
 	this.upEvent = "mouseup";
@@ -9,8 +9,6 @@ EPUBJS.Renderer = function(renderMethod, bufferSize, hidden) {
 		this.downEvent = "touchstart";
 	}
 
-	this.bufferSize = typeof bufferSize !== "number" ? 1 : Math.max(bufferSize, 1);
-
 	/**
 	* Setup a render method.
 	* Options are: Iframe
@@ -19,18 +17,11 @@ EPUBJS.Renderer = function(renderMethod, bufferSize, hidden) {
 		// Create a pool of renders so it's possible for us to load the
 		// previous, current and next sets of chapters.
 		this.renders = [];
-		for (var i = 0; i < this.bufferSize; i++) {
-			this.renders.push(new EPUBJS.Render[renderMethod]());
-		}
+		this.renderMethod = renderMethod;
 		this.firstVisibleRender = 0;
 	} else {
 		console.error("Not a Valid Rendering Method");
 	}
-
-	// Listen for load events
-	this.renders.forEach(function(render) {
-		render.on("render:loaded", this.loaded.bind(this));
-	}, this);
 
 	// Cached for replacement urls from storage
 	this.caches = {};
@@ -85,26 +76,12 @@ EPUBJS.Renderer.prototype.Events = [
 */
 EPUBJS.Renderer.prototype.initialize = function(element, width, height){
 	this.container = element;
-	this.renders.forEach(function(render) {
-		render.create();
-		this.container.appendChild(render.element);
-	}, this);
 
 	this.initWidth = width;
 	this.initHeight = height;
 
 	this.width = width || this.container.clientWidth;
 	this.height = height || this.container.clientHeight;
-
-	if(width && height){
-		this.renders.forEach(function(render) {
-			render.resize(this.width, this.height);
-		}, this);
-	} else {
-		this.renders.forEach(function(render) {
-			render.resize('100%', '100%');
-		}, this);
-	}
 
 	document.addEventListener("orientationchange", this.onResized.bind(this));
 };
@@ -113,6 +90,13 @@ EPUBJS.Renderer.prototype.findRenderForChapter = function(chapter){
 	return EPUBJS.core.find(this.renders, function (render) {
 		return render.chapter && render.chapter.id === chapter.id;
 	}, this);
+};
+
+EPUBJS.Renderer.prototype.createRender = function () {
+	var render = new EPUBJS.Render[this.renderMethod]();
+	render.on("render:loaded", this.loaded.bind(this));
+	render.create();
+	return render;
 };
 
 /**
@@ -132,45 +116,72 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	}
 	this._moving = true;
 
-	// Determine the renders that already have loaded requested chapters,
-	// thereby captializing on chapter pre-loading, and await the rest to load
-	// into avaiable renders.
-	var availableRenders = this.renders.slice();
-	var unavailableRenders = [];
-	var awaitedChapters = chapters.slice();
-	chapters.forEach(function(chapter) {
-		var render = this.findRenderForChapter(chapter);
-		if (render) {
-			EPUBJS.core.remove(availableRenders, render);
-			EPUBJS.core.remove(awaitedChapters, chapter);
-			unavailableRenders.push(render);
-		}
-	}, this);
-
 	// Sort the chapters by their spine positions before assigning them to
-	// renders, so the renders are more likely to be in the right order in the
-	// DOM. We copy the array, because the orginal chapter ordering was
-	// prioritized by the most-important-to-load first.
-	var renderableChapters = awaitedChapters.slice();
-	renderableChapters.sort(function(a, b) {
+	// renders, so the renders are in the right order in the DOM. We copy the
+	// array, because the orginal chapter ordering was prioritized by the
+	// most-important-to-load first.
+	var sortedChapters = chapters.slice();
+	sortedChapters.sort(function(a, b) {
 		return a.spinePos - b.spinePos;
 	}, this);
 
 	if (this.direction === "rtl") {
-		renderableChapters.reverse();
+		sortedChapters.reverse();
 	}
 
-	availableRenders.forEach(function(render, index) {
-		render.previousChapter = render.chapter;
-		render.chapter = renderableChapters[index];
+	// Determine the renders that already have loaded requested chapters,
+	// thereby captializing on chapter pre-loading, and await the rest to load
+	// into new renders.
+	var existingRenders = [];
+	var unusedRenders = this.renders.slice();
+	var newRenders = [];
+	var awaitedChapters = chapters.slice();
+	sortedChapters.forEach(function(chapter) {
+		var render = this.findRenderForChapter(chapter);
+		if (render) {
+			existingRenders.push(render);
+			EPUBJS.core.remove(unusedRenders, render);
+			EPUBJS.core.remove(awaitedChapters, chapter);
+		} else {
+			render = this.createRender();
+			render.chapter = chapter;
+			newRenders.push(render);
+		}
+	}, this);
+
+	// Clean up old renders. We can't reuse them because iframes can't be
+	// rearranged in the DOM without destroying their contents.
+	unusedRenders.forEach(function (render) {
+		render.unload();
+		render.element.parentElement.removeChild(render.element);
+		EPUBJS.core.remove(this.renders, render);
+	}, this);
+
+	newRenders.forEach(function (newRender) {
+		var inserted = existingRenders.some(function (existingRender) {
+			var compare = this.direction === "rtl" ?
+				function (a, b) { return a > b; } :
+				function (a, b) { return a < b; };
+			if (compare(newRender.chapter.spinePos, existingRender.chapter.spinePos)) {
+				// The renders are always sorted, it is safe to assume this
+				// render should also come before the others.
+				this.container.insertBefore(newRender.element, existingRender.element);
+				this.renders.unshift(newRender);
+				return true;
+			}
+		}, this);
+		if (!inserted) {
+			this.container.appendChild(newRender.element);
+			this.renders.push(newRender);
+		}
 	}, this);
 
 	// Reset the other render positions, since they are recycled and if we
 	// navigated away from them they'd maintain their positions and mess up the
 	// mapPage calculations.
-	unavailableRenders.forEach(function (render) {
+	existingRenders.forEach(function (render) {
 		render.page(1);
-	});
+	}, this);
 
 	// Try to recycle an existing chapter object because it might have a
 	// document object associated with it, which might be needed later when
