@@ -329,12 +329,11 @@ EPUBJS.Renderer.prototype.afterLoad = function(contents, render) {
 
 EPUBJS.Renderer.prototype.afterDisplay = function(chapter) {
 
-	var pages = this.layout.calculatePages();
 	var msg = chapter;
 	var queued = this._q.length();
 	this._moving = false;
 
-	this.updatePages(pages);
+	this.updatePages();
 
 	this.visibleRangeCfi = this.getVisibleRangeCfi();
 	this.currentLocationCfi = this.visibleRangeCfi.start;
@@ -494,12 +493,10 @@ EPUBJS.Renderer.prototype.beforeDisplay = function(callback, renderer){
 	this.triggerHooks("beforeChapterDisplay", callback, this);
 };
 
-// Update the renderer with the information passed by the layout
-EPUBJS.Renderer.prototype.updatePages = function(layout){
+EPUBJS.Renderer.prototype.updatePages = function(){
 	// TODO: Needs to handle the pages of multiple chapters
 
 	this.pageMap = this.mapPage();
-	// this.displayedPages = layout.displayedPages;
 
 	if (this.spreads) {
 		this.displayedPages = Math.ceil(this.pageMap.length / 2);
@@ -515,7 +512,6 @@ EPUBJS.Renderer.prototype.updatePages = function(layout){
 // Apply the layout again and jump back to the previous cfi position
 EPUBJS.Renderer.prototype.reformat = function(){
 	var renderer = this;
-	var pages;
 	var spreads;
 
 	if(!this.contents) return;
@@ -544,9 +540,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
 	}, this);
 
-	// TODO: Needs to handle multiple chapters
-	pages = renderer.layout.calculatePages();
-	renderer.updatePages(pages);
+	renderer.updatePages();
 
 	//-- Go to current page after formating
 	if(renderer.currentLocationCfi){
