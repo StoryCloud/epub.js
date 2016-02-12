@@ -804,19 +804,18 @@ EPUBJS.Renderer.prototype.textSprint = function(root, func) {
 		treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
 			acceptNode: filterEmpty
 		}, false);
-		while ((node = treeWalker.nextNode())) {
-			func(node);
-		}
+		node = treeWalker.nextNode(); // IE won't throw an error until calling this
 	} catch (e) {
 		// IE doesn't accept the object, just wants a function
 		// https://msdn.microsoft.com/en-us/library/ff974820(v=vs.85).aspx
 		treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, filterEmpty, false);
-		while ((node = treeWalker.nextNode())) {
-			func(node);
-		}
+		node = treeWalker.nextNode();
 	}
 
-
+	while (node) {
+		func(node);
+		node = treeWalker.nextNode();
+	}
 
 };
 
