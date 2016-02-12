@@ -155,12 +155,14 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	// thereby captializing on chapter pre-loading, and await the rest to load
 	// into avaiable renders.
 	var availableRenders = this.renders.slice();
+	var unavailableRenders = [];
 	var awaitedChapters = chapters.slice();
 	chapters.forEach(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		if (render) {
 			EPUBJS.core.remove(availableRenders, render);
 			EPUBJS.core.remove(awaitedChapters, chapter);
+			unavailableRenders.push(render);
 		}
 	}, this);
 
@@ -177,6 +179,13 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		render.previousChapter = render.chapter;
 		render.chapter = renderableChapters[index];
 	}, this);
+
+	// Reset the other render positions, since they are recycled and if we
+	// navigated away from them they'd maintain their positions and mess up the
+	// mapPage calculations.
+	unavailableRenders.forEach(function (render) {
+		render.page(1);
+	});
 
 	// Try to recycle an existing chapter object because it might have a
 	// document object associated with it, which might be needed later when
