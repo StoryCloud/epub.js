@@ -115,25 +115,6 @@ EPUBJS.Renderer.prototype.findRenderForChapter = function(chapter){
 	}, this);
 };
 
-// We recycle the renders in our render pool. The only requisite for recycling
-// is that the elements be in the right order in the DOM (so an earlier page
-// correctly flows into the next). Therefore, sometimes we need to move 1 of
-// them back in the stack.
-EPUBJS.Renderer.prototype.sortRendersForChapters = function(chapters){
-    var chapterRenders = [];
-    var chapterIndices = [];
-    chapters.forEach(function (chapter) {
-		var render = this.findRenderForChapter(chapter);
-		var index = Array.prototype.indexOf.call(this.container.children, render);
-		chapterRenders.push(render);
-		chapterIndices.push(index);
-    }, this);
-    if (chapterIndices[0] > chapterIndices[1]) {
-		this.container.appendChild(chapterRenders[1].element);
-    }
-};
-
-
 /**
 * Display a chapter
 * Takes: chapter object, global layout settings
@@ -174,6 +155,10 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	renderableChapters.sort(function(a, b) {
 		return a.spinePos - b.spinePos;
 	}, this);
+
+	if (this.direction === "rtl") {
+		renderableChapters.reverse();
+	}
 
 	availableRenders.forEach(function(render, index) {
 		render.previousChapter = render.chapter;
@@ -216,8 +201,6 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		EPUBJS.core.findIndex(this.renders, function (render) {
 			return render.chapter.id === this.currentChapters[0].id;
 		}, this);
-
-	this.sortRendersForChapters(this.currentChapters);
 
 	// FIXME: Locking and toggling visibility negates some advantages of
 	// pre-loading... see if it's possible to un-lock this method, somehow.
@@ -388,7 +371,13 @@ EPUBJS.Renderer.prototype.getMaximumVisibleChapters = function () {
 
 EPUBJS.Renderer.prototype.getVisibleChapters = function () {
     var count = this.getMaximumVisibleChapters();
-	return this.currentChapters.slice(0, count);
+	var start;
+	if (this.direction === "rtl") {
+		start = this.currentChapters.length - count;
+	} else {
+		start = 0;
+	}
+	return this.currentChapters.slice(start, start + count);
 };
 
 EPUBJS.Renderer.prototype.getVisibleRenders = function() {
