@@ -960,8 +960,12 @@ EPUBJS.Book.prototype.nextChapter = function(defer) {
     var defer = defer || new RSVP.defer();
 
     if (this.spinePos < this.spine.length - 1) {
-		// Advance by the actual number of chapters in your way.
-		var min = this.renderer.getVisibleChapters().length;
+		var min;
+		if (this.direction === "rtl") {
+			min = this.renderer.getMaximumVisibleChapters();
+		} else {
+			min = this.renderer.getVisibleChapters().length;
+		}
 		var next = this.spinePos;
 		for (var i = 0; i < min; i++) {
 			next++;
@@ -984,10 +988,12 @@ EPUBJS.Book.prototype.prevChapter = function(defer) {
     var defer = defer || new RSVP.defer();
 
     if (this.spinePos > 0) {
-		// Go back the maximum number of chapters that could be in the opposite
-		// direction, so if at back cover of the book, we end up on the
-		// second-to-last page.
-		var min = this.renderer.getMaximumVisibleChapters();
+		var min;
+		if (this.direction === "rtl") {
+			min = this.renderer.getVisibleChapters().length;
+		} else {
+			min = this.renderer.getMaximumVisibleChapters();
+		}
 		var prev = this.spinePos;
 		for (var i = 0; i < min; i++) {
 			prev--;
