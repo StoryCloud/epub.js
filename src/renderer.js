@@ -99,6 +99,10 @@ EPUBJS.Renderer.prototype.createRender = function () {
 	return render;
 };
 
+EPUBJS.Renderer.prototype.setSpine = function (spine) {
+	this.spine = spine;
+};
+
 /**
 * Display a chapter
 * Takes: chapter object, global layout settings
@@ -183,34 +187,39 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		render.page(1);
 	}, this);
 
+	// Determine the current chapter and the appropriate one to render on the
+	// left or the right.
+	var currentChapters = chapters.slice(0, 1);
+	this.currentChapterIndex = 0;
+	var middleChapter = currentChapters[0];
+	if (middleChapter.spinePos > 0 && middleChapter.spinePos < this.spine.length - 1) {
+		var index = sortedChapters.indexOf(middleChapter);
+		var isOdd = middleChapter.spinePos % 2 === 1;
+		var isRtl = this.direction === "rtl";
+		if ((isOdd && isRtl) || (!isOdd && !isRtl)) {
+			index -= 1;
+			currentChapters.unshift(sortedChapters[index]);
+			this.currentChapterIndex = 1;
+		} else {
+			index += 1;
+			currentChapters.push(sortedChapters[index]);
+		}
+	}
+
 	// Try to recycle an existing chapter object because it might have a
 	// document object associated with it, which might be needed later when
 	// mapping a page. (Chapter objects are created ad-hoc.)
-	var possibleCurrentChapters = chapters.slice(0, 2);
-	this.currentChapters = possibleCurrentChapters.map(function (chapter) {
+	this.currentChapters = currentChapters.map(function (chapter) {
 		var render = this.findRenderForChapter(chapter);
 		if (render && render.chapter.id === chapter.id) {
 			return render.chapter;
 		}
 		return chapter;
-	}, this).filter(function (chapter, index, chapters) {
-		// If the first chapter is the first current chapter, because it might
-		// the cover of the book, it should be the only current chapter.
-		if (chapters[0].spinePos === 0) {
-			return index === 0;
-		}
-		// A chapter coming before an earlier chapter cannot possibly come after
-		// that chapter (which could happen if on the last chapter), so filter
-		// those out.
-		var chaptersBefore = chapters.slice(0, index);
-		return !chaptersBefore.some(function (chapterBefore) {
-			return chapterBefore.spinePos > chapter.spinePos;
-		});
 	}, this);
 
 	this.firstVisibleRender =
 		EPUBJS.core.findIndex(this.renders, function (render) {
-			return render.chapter.id === this.currentChapters[0].id;
+			return render.chapter.id === middleChapter.id;
 		}, this);
 
 	// FIXME: Locking and toggling visibility negates some advantages of
@@ -360,7 +369,7 @@ EPUBJS.Renderer.prototype.loaded = function(url){
 
 EPUBJS.Renderer.prototype.getCurrentChapter = function () {
 	if (this.currentChapters) {
-		return this.currentChapters[0];
+		return this.currentChapters[this.currentChapterIndex];
 	}
 };
 
@@ -382,13 +391,11 @@ EPUBJS.Renderer.prototype.getMaximumVisibleChapters = function () {
 
 EPUBJS.Renderer.prototype.getVisibleChapters = function () {
     var count = this.getMaximumVisibleChapters();
-	var start;
-	if (this.direction === "rtl") {
-		start = this.currentChapters.length - count;
+	if (count === 2) {
+		return this.currentChapters.slice();
 	} else {
-		start = 0;
+		return [this.getCurrentChapter()];
 	}
-	return this.currentChapters.slice(start, start + count);
 };
 
 EPUBJS.Renderer.prototype.getVisibleRenders = function() {

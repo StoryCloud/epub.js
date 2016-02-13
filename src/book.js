@@ -225,6 +225,7 @@ EPUBJS.Book.prototype.unpack = function(packageXml){
 
 	book.manifest = book.contents.manifest;
 	book.spine = book.contents.spine;
+	book.renderer.setSpine(book.spine);
 	book.spineIndexByURL = book.contents.spineIndexByURL;
 	book.metadata = book.contents.metadata;
 	if(!book.settings.bookKey) {
