@@ -393,8 +393,12 @@ EPUBJS.Renderer.prototype.resizeRender = function (render) {
 		width = this.width / visibleRenders.length;
 		height = this.height;
 		render.format(width, height, this.gap);
-		width = render.pageWidth * render.scale;
-		height = render.pageHeight * render.scale;
+		// Prevent rounding errors with this adjustment, as these are inline
+		// elements and they might stack if we don't give them enough space.
+		// Not sure if this is a guessing game, but `2` works for now.
+		var adjustment = 2;
+		width = Math.floor(render.pageWidth * render.scale) - adjustment;
+		height = Math.floor(render.pageHeight * render.scale) - adjustment;
 		render.resize(width, height);
 	} else {
 		// Reflowable layout render dimensions are calculated based on the size
