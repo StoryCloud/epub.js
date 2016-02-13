@@ -279,7 +279,7 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 			}
 		}
 
-		render.format(this.gap);
+		this.resizeRender(render);
 
 		render.chapter.setDocument(render.document);
 
@@ -377,21 +377,30 @@ EPUBJS.Renderer.prototype.getVisibleRenders = function() {
 };
 
 EPUBJS.Renderer.prototype.resizeRender = function (render) {
+	if (!render.layout) {
+		// Renders only have their layout assigned after they have loaded.
+		return;
+	}
 	var visibleRenders = this.getVisibleRenders();
 	// Allocate space for each render.
-	var width;
+	var width, height;
 	if (render.layoutSettings.layout === "pre-paginated") {
-		// TODO: This looks very similar to the code in Layout.Fixed... see if
-		// we can consolidate it.
-		var widthScale = this.width / visibleRenders.length / render.pageWidth;
-		var heightScale = (this.height / render.pageHeight);
-		var scale = widthScale < heightScale ? widthScale : heightScale;
-		width = Math.floor(render.pageWidth * scale) * 0.95;
+		// Fixed layout render dimensions should be equal to sizes of the pages
+		// (so the pages are juxtaposed).
+		width = this.width / visibleRenders.length;
+		height = this.height;
+		render.format(width, height, this.gap);
+		width = render.pageWidth * render.scale;
+		height = render.pageHeight * render.scale;
+		render.resize(width, height);
 	} else {
+		// Reflowable layout render dimensions are calculated based on the size
+		// of the frame, so resize that first.
 		width = (1 / visibleRenders.length * 100) + "%";
+		height = "100%";
+		render.resize(width, height);
+		render.format(render.width, render.height, this.gap);
 	}
-	var height = "100%";
-	render.resize(width, height);
 };
 
 EPUBJS.Renderer.prototype.updateRenderVisibility = function() {
@@ -479,8 +488,9 @@ EPUBJS.Renderer.prototype.beforeDisplay = function(callback, renderer){
 };
 
 EPUBJS.Renderer.prototype.updatePages = function(){
-	// TODO: Needs to handle the pages of multiple chapters
-
+	if (!this.getVisibleRender().isLoaded) {
+		return;
+	}
 	this.pageMap = this.mapPage();
 
 	if (this.spreads) {
@@ -504,7 +514,11 @@ EPUBJS.Renderer.prototype.reformat = function(){
 	// Only re-layout if the spreads have switched
 	if(spreads != this.spreads){
 		this.spreads = spreads;
-		this.renders.forEach(this.determineLayout.bind(this));
+		this.renders.forEach(function (render) {
+			if (render.isLoaded) {
+				this.determineLayout(render);
+			}
+		}, this);
 		this.updateRenderVisibility();
 	}
 
@@ -513,7 +527,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 
 	this.renders.forEach(function(render) {
 		render.page(this.chapterPos);
-		render.format(this.gap);
+		this.resizeRender(render);
 	}, this);
 
 	renderer.updatePages();

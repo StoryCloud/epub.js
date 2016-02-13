@@ -62,6 +62,8 @@ EPUBJS.Render.Iframe.prototype.load = function(contents, url){
 			render.bodyEl.style.margin = "0";
 		}
 
+		render.isLoaded = true;
+
 		deferred.resolve(render.docEl);
 	};
 
@@ -138,14 +140,6 @@ EPUBJS.Render.Iframe.prototype.totalWidth = function(){
 
 EPUBJS.Render.Iframe.prototype.totalHeight = function(){
 	return this.docEl.scrollHeight;
-};
-
-EPUBJS.Render.Iframe.prototype.setPageDimensions = function(pageWidth, pageHeight, scale){
-	this.pageWidth = pageWidth;
-	this.pageHeight = pageHeight;
-	this.scale = scale;
-	//-- Add a page to the width of the document to account an for odd number of pages
-	// this.docEl.style.width = this.docEl.scrollWidth + pageWidth + "px";
 };
 
 EPUBJS.Render.Iframe.prototype.setDirection = function(direction){
@@ -278,21 +272,23 @@ EPUBJS.Render.Iframe.prototype.scroll = function(bool){
 };
 
 EPUBJS.Render.Iframe.prototype.visible = function(bool){
-	this.element.style.position = "absolute";
-	this.element.style.top = "0";
-	this.element.style.left = "0";
 	// Use `visibility` so dimensions remain calculable.
 	if(bool) {
 		this.element.style.visibility = "visible";
+		this.element.style.position = "static";
 	} else {
 		this.element.style.visibility = "hidden";
+		// Take the element out of the flow of content so we can easily use CSS
+		// to position the visible elements.
+		this.element.style.position = "absolute";
 	}
 };
 
-EPUBJS.Render.Iframe.prototype.format = function (gap) {
-	this.calculateDimensions();
-	var formatted = this.layout.format(this.docEl, this.width, this.height, gap);
-	this.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
+EPUBJS.Render.Iframe.prototype.format = function (width, height, gap) {
+	var formatted = this.layout.format(this.docEl, width, height, gap);
+	this.pageWidth = formatted.pageWidth;
+	this.pageHeight = formatted.pageHeight;
+	this.scale = formatted.scale;
 };
 
 // Cleanup event listeners
