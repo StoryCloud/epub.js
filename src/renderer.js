@@ -215,11 +215,6 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		return chapter;
 	}, this);
 
-	this.firstVisibleRender =
-		EPUBJS.core.findIndex(this.renders, function (render) {
-			return render.chapter.id === middleChapter.id;
-		}, this);
-
 	this.renderPromises = this.renderPromises || {};
 	awaitedChapters.forEach(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
@@ -249,6 +244,11 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 			EPUBJS.core.removeElement(render.element);
 			EPUBJS.core.remove(this.renders, render);
 		}, this);
+
+		this.firstVisibleRender =
+			EPUBJS.core.findIndex(this.renders, function (render) {
+				return render.chapter.id === middleChapter.id;
+			}, this);
 
 		this.afterLoad();
 		this.beforeDisplay(this.afterDisplay.bind(this));
