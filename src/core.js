@@ -11,6 +11,10 @@ EPUBJS.core.getEls = function(classes) {
 	return document.getElementsByClassName(classes);
 };
 
+EPUBJS.core.removeElement = function(element) {
+	return element.parentNode.removeChild(element);
+};
+
 EPUBJS.core.request = function(url, type, withCredentials) {
 	var supportsURL = window.URL;
 	var BLOB_RESPONSE = supportsURL ? "blob" : "arraybuffer";

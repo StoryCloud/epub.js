@@ -157,8 +157,10 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	// Clean up old renders. We can't reuse them because iframes can't be
 	// rearranged in the DOM without destroying their contents.
 	unusedRenders.forEach(function (render) {
+		this.trigger("renderer:chapterUnload");
 		render.unload();
-		render.element.parentElement.removeChild(render.element);
+		this.trigger("renderer:chapterUnloaded");
+		EPUBJS.core.removeElement(render.element);
 		EPUBJS.core.remove(this.renders, render);
 	}, this);
 
@@ -230,30 +232,9 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	var chapterRenderPromises = awaitedChapters.map(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		return chapter.render().then(function(contents) {
-
-			// Unload the previous chapter listener
-			if(render.previousChapter && render.previousChapter.id !== chapter.id) {
-				this.trigger("renderer:chapterUnload");
-				render.previousChapter.unload(); // Remove stored blobs
-
-				if(render.window){
-					render.window.removeEventListener("resize", this.resized);
-				}
-
-				this.removeEventListeners(render);
-				this.removeSelectionListeners(render);
-				this.trigger("renderer:chapterUnloaded");
-				this.contents = null;
-				this.doc = null;
-				this.pageMap = null;
-			}
-
 			this.chapterPos = 1;
-
 			this.layoutSettings = this.reconcileLayoutSettings(globalLayout, chapter.properties);
-
 			return this.load(contents, chapter.href, render);
-
 		}.bind(this));
 	}, this);
 
@@ -572,15 +553,10 @@ EPUBJS.Renderer.prototype.remove = function() {
 	this.renders.forEach(function(render) {
 		if(render.window) {
 			render.unload();
-			render.window.removeEventListener("resize", this.resized);
-			this.removeEventListeners(render);
-			this.removeSelectionListeners(render);
 		}
+		EPUBJS.core.removeElement(render.element);
 	}, this);
-
-	this.renders.forEach(function(render) {
-		this.container.removeChild(render.element);
-	}, this);
+	this.renders = [];
 
 	window.removeEventListener("resize", this.resized);
 	window.removeEventListener("orientationchange", this.resized);
@@ -1378,16 +1354,6 @@ EPUBJS.Renderer.prototype.addEventListeners = function(render){
 
 };
 
-EPUBJS.Renderer.prototype.removeEventListeners = function(render){
-	if(!render.document) {
-		return;
-	}
-	this.listenedEvents.forEach(function(eventName){
-		render.document.removeEventListener(eventName, this.triggerEvent, false);
-	}, this);
-
-};
-
 // Pass browser events
 EPUBJS.Renderer.prototype.triggerEvent = function(e){
 	this.trigger("renderer:"+e.type, e);
@@ -1398,13 +1364,6 @@ EPUBJS.Renderer.prototype.addSelectionListeners = function(render){
 		this.onSelectionChange(e, render);
 	}.bind(this);
 	render.document.addEventListener("selectionchange", render.selectionListener, false);
-};
-
-EPUBJS.Renderer.prototype.removeSelectionListeners = function(render){
-	if(!render.document) {
-		return;
-	}
-	render.document.removeEventListener("selectionchange", render.selectionListener, false);
 };
 
 EPUBJS.Renderer.prototype.onSelectionChange = function(e, render){
