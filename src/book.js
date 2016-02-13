@@ -711,7 +711,7 @@ EPUBJS.Book.prototype.startDisplay = function(){
 	}else if(this.settings.previousLocationCfi) {
 		display = this.gotoCfi(this.settings.previousLocationCfi);
 	}else{
-		display = this.displayChapter(this.spinePos);
+		display = this.displayChapter(0);
 	}
 
 	return display;
