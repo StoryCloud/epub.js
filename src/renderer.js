@@ -149,6 +149,7 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 			EPUBJS.core.remove(awaitedChapters, chapter);
 		} else {
 			render = this.createRender();
+			render.visible(false);
 			render.chapter = chapter;
 			newRenders.push(render);
 		}
@@ -225,24 +226,32 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 			return render.chapter.id === middleChapter.id;
 		}, this);
 
-	// FIXME: Locking and toggling visibility negates some advantages of
-	// pre-loading... see if it's possible to un-lock this method, somehow.
-	this.visible(false);
-
-	var chapterRenderPromises = awaitedChapters.map(function(chapter) {
+	this.renderPromises = this.renderPromises || {};
+	awaitedChapters.map(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
-		return chapter.render().then(function(contents) {
+		var renderPromise = chapter.render().then(function(contents) {
 			this.chapterPos = 1;
-			this.layoutSettings = this.reconcileLayoutSettings(globalLayout, chapter.properties);
+			// FIXME: Should keep track of layout settings per-render instead or
+			// also, considering there is more than one and `chapter.properties`
+			// could potentially clobber other pages' settings.
+			this.reconcileLayoutSettings(globalLayout, chapter.properties);
 			return this.load(contents, chapter.href, render);
 		}.bind(this));
+		this.renderPromises[chapter.id] = renderPromise;
 	}, this);
 
-	return RSVP.all(chapterRenderPromises).then(function () {
+	// Try to determine the layout so we might know which pages are relevant.
+	this.reconcileLayoutSettings(globalLayout, []);
+	this.determineLayout();
+
+	var relevantPromises = this.getVisibleRenders().map(function (render) {
+		return this.renderPromises[render.chapter.id];
+	}, this);
+
+	return RSVP.all(relevantPromises).then(function () {
 		this.afterLoad();
 		this.beforeDisplay(this.afterDisplay.bind(this));
 		this._moving = false;
-		this.visible(true);
 	}.bind(this));
 };
 
@@ -253,13 +262,7 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 */
 
 EPUBJS.Renderer.prototype.load = function(contents, url, render){
-	var deferred = new RSVP.defer();
-	var loaded;
-
-	// Switch to the required layout method for the settings
-	this.determineLayout();
-
-	render.load(contents, url).then(function(contents) {
+	return render.load(contents, url).then(function(contents) {
 
 		// Duck-type fixed layout books.
 		if (EPUBJS.Layout.isFixedLayout(contents)) {
@@ -293,11 +296,7 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 		this.addEventListeners(render);
 		this.addSelectionListeners(render);
 
-		deferred.resolve(this); //-- why does this return the renderer?
-
 	}.bind(this));
-
-	return deferred.promise;
 };
 
 EPUBJS.Renderer.prototype.afterLoad = function() {
@@ -416,7 +415,7 @@ EPUBJS.Renderer.prototype.reconcileLayoutSettings = function(global, chapter){
 
 	//-- Get the global defaults
 	for (var attr in global) {
-		if (global.hasOwnProperty(attr)){
+		if (Object.prototype.hasOwnProperty.call(global, attr)){
 			settings[attr] = global[attr];
 		}
 	}
@@ -433,7 +432,8 @@ EPUBJS.Renderer.prototype.reconcileLayoutSettings = function(global, chapter){
 			settings[property] = value;
 		}
 	});
- return settings;
+
+	this.layoutSettings = settings;
 };
 
 /**
