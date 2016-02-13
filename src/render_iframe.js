@@ -8,6 +8,8 @@ EPUBJS.Render.Iframe = function() {
 	this.leftPos = 0;
 	this.pageWidth = 0;
 	this.scale = 1;
+
+	this.resized = this.calculateDimensions.bind(this);
 };
 
 //-- Build up any html needed
@@ -49,7 +51,7 @@ EPUBJS.Render.Iframe.prototype.load = function(contents, url){
 		render.bodyEl = render.document.body || render.document.querySelector("body");
 		render.window = render.iframe.contentWindow;
 
-		render.window.addEventListener("resize", render.resized.bind(render), false);
+		render.window.addEventListener("resize", render.resized, false);
 
 		// Reset the scroll position
 		render.leftPos = 0;
@@ -117,27 +119,17 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 	}
 
 	this.iframe.width = width;
-	// Get the fractional height and width of the iframe
-	var rect = this.iframe.getBoundingClientRect();
-	if (rect.width) {
-		this.width = rect.width;
-	}
-	if (rect.height) {
-		this.height = rect.height;
-	}
+
+	// Changing the iframe size may change the render's dimensions.
+	this.calculateDimensions();
 };
 
 
-EPUBJS.Render.Iframe.prototype.resized = function(e){
+EPUBJS.Render.Iframe.prototype.calculateDimensions = function(){
 	// Get the fractional height and width of the iframe
 	var rect = this.iframe.getBoundingClientRect();
-	// >= 1 because hidden renders were sometimes has a "0.5" width in Chrome...
-	if (rect.width >= 1) {
-		this.width = rect.width;
-	}
-	if (rect.height >= 1) {
-		this.height = rect.height;
-	}
+	this.width = rect.width;
+	this.height = rect.height;
 };
 
 EPUBJS.Render.Iframe.prototype.totalWidth = function(){
@@ -286,11 +278,21 @@ EPUBJS.Render.Iframe.prototype.scroll = function(bool){
 };
 
 EPUBJS.Render.Iframe.prototype.visible = function(bool){
+	this.element.style.position = "absolute";
+	this.element.style.top = "0";
+	this.element.style.left = "0";
+	// Use `visibility` so dimensions remain calculable.
 	if(bool) {
-		this.element.style.display = "inline";
+		this.element.style.visibility = "visible";
 	} else {
-		this.element.style.display = "none";
+		this.element.style.visibility = "hidden";
 	}
+};
+
+EPUBJS.Render.Iframe.prototype.format = function (gap) {
+	this.calculateDimensions();
+	var formatted = this.layout.format(this.docEl, this.width, this.height, gap);
+	this.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
 };
 
 // Cleanup event listeners

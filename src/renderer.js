@@ -33,8 +33,6 @@ EPUBJS.Renderer = function(renderMethod, hidden) {
 	this.isForcedSingle = false;
 	this.resized = this.onResized.bind(this);
 
-	this.layoutSettings = {};
-
 	this.hidden = hidden || false;
 	//-- Adds Hook methods to the Book prototype
 	//   Hooks will all return before triggering the callback.
@@ -97,6 +95,11 @@ EPUBJS.Renderer.prototype.createRender = function () {
 	var render = new EPUBJS.Render[this.renderMethod]();
 	render.on("render:loaded", this.loaded.bind(this));
 	render.create();
+	if(this.initWidth && this.initHeight){
+		render.resize(this.initWidth, this.initHeight);
+	} else {
+		render.resize('100%', '100%');
+	}
 	return render;
 };
 
@@ -151,6 +154,7 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 			render = this.createRender();
 			render.visible(false);
 			render.chapter = chapter;
+			render.layoutSettings = this.reconcileLayoutSettings(globalLayout, chapter.properties);
 			newRenders.push(render);
 		}
 	}, this);
@@ -227,22 +231,17 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		}, this);
 
 	this.renderPromises = this.renderPromises || {};
-	awaitedChapters.map(function(chapter) {
+	awaitedChapters.forEach(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		var renderPromise = chapter.render().then(function(contents) {
 			this.chapterPos = 1;
-			// FIXME: Should keep track of layout settings per-render instead or
-			// also, considering there is more than one and `chapter.properties`
-			// could potentially clobber other pages' settings.
-			this.reconcileLayoutSettings(globalLayout, chapter.properties);
 			return this.load(contents, chapter.href, render);
 		}.bind(this));
 		this.renderPromises[chapter.id] = renderPromise;
 	}, this);
 
-	// Try to determine the layout so we might know which pages are relevant.
-	this.reconcileLayoutSettings(globalLayout, []);
-	this.determineLayout();
+	// Determine spreads so we know how many pages will be visible and relevant.
+	this.spreads = this.determineSpreads();
 
 	var relevantPromises = this.getVisibleRenders().map(function (render) {
 		return this.renderPromises[render.chapter.id];
@@ -266,28 +265,24 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 
 		// Duck-type fixed layout books.
 		if (EPUBJS.Layout.isFixedLayout(contents)) {
-			this.layoutSettings.layout = "pre-paginated";
-			this.determineLayout();
+			render.layoutSettings.layout = "pre-paginated";
 		}
-		render.setLayout(this.layoutSettings.layout);
+		this.determineLayout(render);
 
 		// HTML element must have direction set if RTL or columnns will
 		// not be in the correct direction in Firefox
 		// Firefox also need the html element to be position right
 		if(render.direction == "rtl" && render.docEl.dir != "rtl"){
 			render.docEl.dir = "rtl";
-			if (render.layout !== "pre-paginated") {
+			if (render.layoutSettings.layout !== "pre-paginated") {
 				render.docEl.style.position = "absolute";
 				render.docEl.style.right = "0";
 			}
 		}
 
-		render.chapter.setDocument(render.document);
+		render.format(this.gap);
 
-		// Format the contents using the current layout method
-		this.resizeRender(render);
-		var formatted = this.layout.format(contents, render.width, render.height, this.gap);
-		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
+		render.chapter.setDocument(render.document);
 
 		if(!this.initWidth && !this.initHeight){
 			render.window.addEventListener("resize", this.resized, false);
@@ -352,8 +347,11 @@ EPUBJS.Renderer.prototype.getVisibleRender = function() {
 };
 
 EPUBJS.Renderer.prototype.getMaximumVisibleChapters = function () {
-    var count;
-	if (this.layoutSettings.layout === "pre-paginated" && this.spreads) {
+	// TODO: Doesn't feel quite right, why should some render dictate the layout
+	// for the whole renderer? (Works most of the time but might not always.)
+	var render = this.getVisibleRender();
+	var count;
+	if (render.layoutSettings.layout === "pre-paginated" && this.spreads) {
 		count = 2;
 	} else {
 		count = 1;
@@ -381,7 +379,7 @@ EPUBJS.Renderer.prototype.resizeRender = function (render) {
 	var visibleRenders = this.getVisibleRenders();
 	// Allocate space for each render.
 	var width;
-	if (this.layoutSettings.layout === "pre-paginated") {
+	if (render.layoutSettings.layout === "pre-paginated") {
 		// TODO: This looks very similar to the code in Layout.Fixed... see if
 		// we can consolidate it.
 		var widthScale = this.width / visibleRenders.length / render.pageWidth;
@@ -400,7 +398,6 @@ EPUBJS.Renderer.prototype.updateRenderVisibility = function() {
 	this.renders.forEach(function (render) {
 		var isVisible = EPUBJS.core.contains(visibleRenders, render);
 		render.visible(isVisible);
-		this.resizeRender(render);
 	}, this);
 };
 
@@ -433,7 +430,7 @@ EPUBJS.Renderer.prototype.reconcileLayoutSettings = function(global, chapter){
 		}
 	});
 
-	this.layoutSettings = settings;
+	return settings;
 };
 
 /**
@@ -442,11 +439,11 @@ EPUBJS.Renderer.prototype.reconcileLayoutSettings = function(global, chapter){
 * Takes: Layout settings object
 * Returns: String of appropriate for EPUBJS.Layout function
 */
-EPUBJS.Renderer.prototype.determineLayout = function(){
-	var settings = this.layoutSettings;
+EPUBJS.Renderer.prototype.determineLayout = function(render){
+	var settings = render.layoutSettings;
 
 	// Default is layout: reflowable & spread: auto
-	var spreads = this.determineSpreads(this.minSpreadWidth);
+	var spreads = this.determineSpreads();
 	var layoutMethod = spreads ? "ReflowableSpreads" : "Reflowable";
 	var scroll = false;
 
@@ -469,12 +466,10 @@ EPUBJS.Renderer.prototype.determineLayout = function(){
 	}
 
 	this.spreads = spreads;
-	this.renders.forEach(function(render) {
-		render.scroll(scroll);
-	}, this);
+	render.scroll(scroll);
 	this.trigger("renderer:spreads", spreads);
 
-	this.layout = new EPUBJS.Layout[layoutMethod]();
+	render.setLayout(new EPUBJS.Layout[layoutMethod]());
 };
 
 // Shortcut to trigger the hook before displaying the chapter
@@ -503,19 +498,13 @@ EPUBJS.Renderer.prototype.reformat = function(){
 
 	if(!this.contents) return;
 
-	spreads = this.determineSpreads(this.minSpreadWidth);
+	spreads = this.determineSpreads();
 
 	// Only re-layout if the spreads have switched
 	if(spreads != this.spreads){
 		this.spreads = spreads;
-		this.determineLayout();
+		this.renders.forEach(this.determineLayout.bind(this));
 		this.updateRenderVisibility();
-	} else {
-		// updateRenderVisibility normally calls this, make sure we still do
-		// even if there are spreads.
-		this.renders.forEach(function (render) {
-			this.resizeRender(render);
-		}, this);
 	}
 
 	// Reset pages
@@ -523,8 +512,7 @@ EPUBJS.Renderer.prototype.reformat = function(){
 
 	this.renders.forEach(function(render) {
 		render.page(this.chapterPos);
-		var formatted = renderer.layout.format(render.docEl, render.width, render.height, renderer.gap);
-		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
+		render.format(this.gap);
 	}, this);
 
 	renderer.updatePages();
@@ -809,11 +797,12 @@ EPUBJS.Renderer.prototype.sprint = function(root, func) {
 
 EPUBJS.Renderer.prototype.mapPage = function(){
 	var renderer = this;
+	var render = this.getVisibleRender();
 	var map = [];
-	var root = this.getVisibleRender().getBaseElement();
+	var root = render.getBaseElement();
 	var page = 1;
-	var width = this.layout.colWidth + this.layout.gap;
-	var offset = this.getVisibleRender().pageWidth * (this.chapterPos-1);
+	var width = render.layout.colWidth + render.layout.gap;
+	var offset = render.pageWidth * (this.chapterPos-1);
 	var limit = (width * page) - offset;// (width * page) - offset;
 	var elLimit = 0;
 	var prevRange;
@@ -903,13 +892,13 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 
 		return result;
 	};
-	var docEl = this.getVisibleRender().getDocumentElement();
+	var docEl = render.getDocumentElement();
 	var dir = docEl.dir;
 
 	// Set back to ltr before sprinting to get correct order
 	if(dir == "rtl") {
 		docEl.dir = "ltr";
-		if (this.layoutSettings.layout !== "pre-paginated") {
+		if (render.layoutSettings.layout !== "pre-paginated") {
 			docEl.style.position = "static";
 		}
 	}
@@ -919,7 +908,7 @@ EPUBJS.Renderer.prototype.mapPage = function(){
 	// Reset back to previous RTL settings
 	if(dir == "rtl") {
 		docEl.dir = dir;
-		if (this.layoutSettings.layout !== "pre-paginated") {
+		if (render.layoutSettings.layout !== "pre-paginated") {
 			docEl.style.left = "auto";
 			docEl.style.right = "0";
 		}
@@ -1381,10 +1370,11 @@ EPUBJS.Renderer.prototype.onSelectionChange = function(e, render){
 
 EPUBJS.Renderer.prototype.setMinSpreadWidth = function(width){
 	this.minSpreadWidth = width;
-	this.spreads = this.determineSpreads(width);
+	this.spreads = this.determineSpreads();
 };
 
-EPUBJS.Renderer.prototype.determineSpreads = function(cutoff){
+EPUBJS.Renderer.prototype.determineSpreads = function(){
+	var cutoff = this.minSpreadWidth;
 	if(this.isForcedSingle || !cutoff || this.width < cutoff) {
 		return false; //-- Single Page
 	}else{
@@ -1395,10 +1385,8 @@ EPUBJS.Renderer.prototype.determineSpreads = function(cutoff){
 EPUBJS.Renderer.prototype.forceSingle = function(bool){
 	if(bool) {
 		this.isForcedSingle = true;
-		// this.spreads = false;
 	} else {
 		this.isForcedSingle = false;
-		// this.spreads = this.determineSpreads(this.minSpreadWidth);
 	}
 };
 
