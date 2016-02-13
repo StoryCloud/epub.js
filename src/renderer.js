@@ -159,16 +159,6 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 		}
 	}, this);
 
-	// Clean up old renders. We can't reuse them because iframes can't be
-	// rearranged in the DOM without destroying their contents.
-	unusedRenders.forEach(function (render) {
-		this.trigger("renderer:chapterUnload");
-		render.unload();
-		this.trigger("renderer:chapterUnloaded");
-		EPUBJS.core.removeElement(render.element);
-		EPUBJS.core.remove(this.renders, render);
-	}, this);
-
 	newRenders.forEach(function (newRender) {
 		var inserted = existingRenders.some(function (existingRender) {
 			var compare = this.direction === "rtl" ?
@@ -247,6 +237,19 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	}, this);
 
 	return RSVP.all(relevantPromises).then(function () {
+
+		// Clean up old renders. We can't reuse them because iframes can't be
+		// rearranged in the DOM without destroying their contents. Wait until
+		// after relevant promises have resolved so the user always has
+		// something to look at despite the buffer size.
+		unusedRenders.forEach(function (render) {
+			this.trigger("renderer:chapterUnload");
+			render.unload();
+			this.trigger("renderer:chapterUnloaded");
+			EPUBJS.core.removeElement(render.element);
+			EPUBJS.core.remove(this.renders, render);
+		}, this);
+
 		this.afterLoad();
 		this.beforeDisplay(this.afterDisplay.bind(this));
 		this._moving = false;
