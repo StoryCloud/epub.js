@@ -300,6 +300,7 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 		render.chapter.setDocument(render.document);
 
 		// Format the contents using the current layout method
+		this.resizeRender(render);
 		var formatted = this.layout.format(contents, render.width, render.height, this.gap);
 		render.setPageDimensions(formatted.pageWidth, formatted.pageHeight, formatted.scale);
 
