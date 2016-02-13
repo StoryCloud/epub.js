@@ -336,6 +336,7 @@ EPUBJS.Renderer.prototype.afterDisplay = function() {
 	this._moving = false;
 
 	this.updatePages();
+	this._q.flush();
 
 	this.visibleRangeCfi = this.getVisibleRangeCfi();
 	this.currentLocationCfi = this.visibleRangeCfi.start;
@@ -511,8 +512,6 @@ EPUBJS.Renderer.prototype.updatePages = function(){
 	}
 
 	this.getCurrentChapter().pages = this.pageMap.length;
-
-	this._q.flush();
 };
 
 // Apply the layout again and jump back to the previous cfi position
