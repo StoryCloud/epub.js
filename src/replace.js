@@ -20,7 +20,7 @@ EPUBJS.replace.hrefs = function(callback, renderer){
 
 		}else{
 			// Links may need to be resolved, such as ../chp1.xhtml
-			base = renderer.render.docEl.querySelector('base');
+			base = renderer.getVisibleRender().docEl.querySelector('base');
 			url = base.getAttribute("href");
 			uri = EPUBJS.core.uri(url);
 			directory = uri.directory;
