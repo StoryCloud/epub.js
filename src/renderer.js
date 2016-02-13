@@ -234,7 +234,6 @@ EPUBJS.Renderer.prototype.displayChapters = function(chapters, globalLayout){
 	awaitedChapters.forEach(function(chapter) {
 		var render = this.findRenderForChapter(chapter);
 		var renderPromise = chapter.render().then(function(contents) {
-			this.chapterPos = 1;
 			return this.load(contents, chapter.href, render);
 		}.bind(this));
 		this.renderPromises[chapter.id] = renderPromise;
@@ -311,6 +310,8 @@ EPUBJS.Renderer.prototype.afterDisplay = function() {
 	var queued = this._q.length();
 	this._moving = false;
 
+	// Set the position at beginning so `mapPage` makes correct calculations.
+	this.chapterPos = 1;
 	this.updatePages();
 	this._q.flush();
 
