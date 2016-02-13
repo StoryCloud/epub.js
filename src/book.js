@@ -522,12 +522,6 @@ EPUBJS.Book.prototype.listenToRenderer = function(renderer){
 			// (though last is going to be hard, since it could be several reflowed pages long)
 		}
 	}.bind(this));
-
-	renderer.on("render:loaded", function () {
-		if(!this._rendering) {
-			this.renderer.reformat();
-		}
-	}.bind(this));
 };
 
 EPUBJS.Book.prototype.unlistenToRenderer = function(renderer){
