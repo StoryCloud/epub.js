@@ -29,7 +29,7 @@ EPUBJS.Book = function(options){
 
 	this.settings.EPUBJSVERSION = EPUBJS.VERSION;
 
-	this.spinePos = 0;
+	this.spinePos = undefined;
 	this.stored = false;
 
 	//-- All Book events for listening
