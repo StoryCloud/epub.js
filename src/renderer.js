@@ -1452,34 +1452,12 @@ EPUBJS.Renderer.prototype.setDirection = function(direction){
 
 //-- Content Replacements
 
-EPUBJS.Renderer.prototype.replace = function(query, func, finished, progress){
-	this.renders.some(function(render) {
+EPUBJS.Renderer.prototype.replace = function(query, func){
+	this.renders.forEach(function(render) {
 		var items = render.docEl.querySelectorAll(query),
-			resources = Array.prototype.slice.call(items),
-			count = resources.length;
-
-
-		if(count === 0) {
-			finished(false);
-			return; // continue
-		}
-		resources.forEach(function(item){
-			var called = false;
-			var after = function(result, full){
-				if(called === false) {
-					count--;
-					if(progress) progress(result, full, count);
-					if(count <= 0 && finished) finished(true);
-					called = true;
-				}
-			};
-
-			func(item, after);
-
-		}.bind(this));
+			resources = Array.prototype.slice.call(items);
+		resources.forEach(func, this);
 	}, this);
-
-
 };
 
 //-- Enable binding events to Renderer

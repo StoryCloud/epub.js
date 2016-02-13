@@ -4,7 +4,7 @@ EPUBJS.replace = {};
 //-- Replaces the relative links within the book to use our internal page changer
 EPUBJS.replace.hrefs = function(callback, renderer){
 	var book = this;
-	var replacments = function(link, done){
+	var replacements = function(link){
 		var href = link.getAttribute("href"),
 				isRelative = href.search("://"),
 				directory,
@@ -45,11 +45,10 @@ EPUBJS.replace.hrefs = function(callback, renderer){
 			};
 
 		}
-		done();
-
 	};
 
-	renderer.replace("a[href]", replacments, callback);
+	renderer.replace("a[href]", replacements);
+	callback();
 
 };
 
