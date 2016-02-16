@@ -163,7 +163,9 @@ EPUBJS.Render.Iframe.prototype.setLeft = function(leftPos){
 	// this.docEl.style[EPUBJS.Render.Iframe.transform] = 'translate('+ (-leftPos) + 'px, 0)';
 
 	if (this.isMobile) {
-		this.docEl.style[this.transform] = 'translate('+ (-leftPos) + 'px, 0)';
+		if (this.layoutSettings.layout !== 'pre-paginated') {
+			this.docEl.style[this.transform] = 'translate('+ (-leftPos) + 'px, 0)';
+		}
 	} else {
 		this.document.defaultView.scrollTo(leftPos, 0);
 	}
