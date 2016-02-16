@@ -149,7 +149,7 @@ EPUBJS.Render.Iframe.prototype.setDirection = function(direction){
 	// Undo previous changes if needed
 	if(this.docEl && this.docEl.dir == "rtl"){
 		this.docEl.dir = "rtl";
-		if (this.layout !== "pre-paginated") {
+		if (this.layoutSettings.layout !== "pre-paginated") {
 			this.docEl.style.position = "static";
 			this.docEl.style.right = "auto";
 		}
