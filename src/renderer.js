@@ -1396,7 +1396,17 @@ EPUBJS.Renderer.prototype.setMinSpreadWidth = function(width){
 };
 
 EPUBJS.Renderer.prototype.determineSpreads = function(){
-	var cutoff = this.minSpreadWidth;
+	var cutoff;
+	var inLandscape = typeof orientation !== 'undefined' &&
+		orientation !== 0 &&
+		orientation / 90 % 1 === 0;
+	if (inLandscape) {
+		// If in landscape on a mobile phone, we almost surely have room to
+		// spread things out.
+		return true;
+	} else {
+		cutoff = this.minSpreadWidth;
+	}
 	if(this.isForcedSingle || !cutoff || this.width < cutoff) {
 		return false; //-- Single Page
 	}else{
