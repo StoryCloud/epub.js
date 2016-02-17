@@ -1396,7 +1396,16 @@ EPUBJS.Renderer.prototype.determineSpreads = function(){
 		orientation / 90 % 1 === 0;
 	if (inLandscape) {
 		// If in landscape on a mobile phone, we almost surely have room to
-		// spread things out.
+		// spread things out. As for whether we should, we actually might not
+		// know (since for EPUB2 documents, we duck-type for pre-paginated books
+		// only after the document is loaded), so try and find an excuse not to,
+		// but pessimistically we otherwise must.
+		var render = this.getVisibleRender();
+		if (render &&
+			render.layoutSettings.layout !== undefined &&
+			render.layoutSettings.layout !== 'pre-paginated') {
+			return false;
+		}
 		return true;
 	} else {
 		cutoff = this.minSpreadWidth;
