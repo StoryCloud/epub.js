@@ -95,11 +95,9 @@ EPUBJS.Renderer.prototype.createRender = function () {
 	var render = new EPUBJS.Render[this.renderMethod]();
 	render.on("render:loaded", this.loaded.bind(this));
 	render.create();
-	// if(this.initWidth && this.initHeight){
-	// 	render.resize(this.initWidth, this.initHeight);
-	// } else {
-	// 	render.resize('100%', '100%');
-	// }
+	if(this.initWidth && this.initHeight){
+		render.resize(this.initWidth, this.initHeight);
+	}
 	return render;
 };
 
@@ -402,11 +400,8 @@ EPUBJS.Renderer.prototype.resizeRender = function (render) {
 		height = Math.floor(render.pageHeight * render.scale) - adjustment;
 		render.resize(width, height);
 	} else {
-		// Reflowable layout render dimensions are calculated based on the size
-		// of the frame, so resize that first.
-		// width = (1 / visibleRenders.length * 100) + "%";
-		// height = "100%";
-		// render.resize(width, height);
+		// Reflowable layout render dimensions are calculated based on
+		// the size of the frame, so calculate that first.
 		render.calculateDimensions();
 		render.format(render.width, render.height, this.gap);
 	}
