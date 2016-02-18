@@ -115,13 +115,13 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 
 	if(!this.iframe) return;
 
-	this.iframe.height = height;
+	this.iframe.style.height = height;
 
 	if(!isNaN(width) && width % 2 !== 0){
 		width += 1; //-- Prevent cutting off edges of text in columns
 	}
 
-	this.iframe.width = width;
+	this.iframe.style.width = width;
 
 	// Changing the iframe size may change the render's dimensions.
 	this.calculateDimensions();
