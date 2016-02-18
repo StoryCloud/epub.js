@@ -1421,6 +1421,15 @@ EPUBJS.Renderer.prototype.setDirection = function(direction){
 
 EPUBJS.Renderer.prototype.replace = function(query, func){
 	this.renders.forEach(function(render) {
+		// TODO: Due to loading optimization refactoring, renders do not
+		// necessarily have a `docEl` property (they have not
+		// necessarily completed loading yet). The hooks that call this
+		// method should probably be refactored to only apply to
+		// individual renders. That would be more computationally
+		// efficient, too.
+		if (!render.docEl) {
+			return;
+		}
 		var items = render.docEl.querySelectorAll(query),
 			resources = Array.prototype.slice.call(items);
 		resources.forEach(func, this);
