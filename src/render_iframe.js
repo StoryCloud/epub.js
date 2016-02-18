@@ -52,6 +52,7 @@ EPUBJS.Render.Iframe.prototype.load = function(contents, url){
 		render.window = render.iframe.contentWindow;
 
 		render.window.addEventListener("resize", render.resized, false);
+		render.window.addEventListener("orientationchange", render.resized, false);
 
 		// Reset the scroll position
 		render.leftPos = 0;
@@ -287,6 +288,7 @@ EPUBJS.Render.Iframe.prototype.format = function (width, height, gap) {
 // Cleanup event listeners
 EPUBJS.Render.Iframe.prototype.unload = function(){
 	this.window.removeEventListener("resize", this.resized);
+	this.window.removeEventListener("orientationchange", this.resized);
 	this.window.location.reload();
 };
 
