@@ -462,28 +462,22 @@ EPUBJS.Renderer.prototype.determineLayout = function(render){
 	// Default is layout: reflowable & spread: auto
 	var spreads = this.determineSpreads();
 	var layoutMethod = spreads ? "ReflowableSpreads" : "Reflowable";
-	var scroll = false;
 
 	if(settings.layout === "pre-paginated") {
 		layoutMethod = "Fixed";
-		scroll = true;
-		// Use the determined spreads value.
 	}
 
 	if(settings.layout === "reflowable" && settings.spread === "none") {
 		layoutMethod = "Reflowable";
-		scroll = false;
 		spreads = false;
 	}
 
 	if(settings.layout === "reflowable" && settings.spread === "both") {
 		layoutMethod = "ReflowableSpreads";
-		scroll = false;
 		spreads = true;
 	}
 
 	this.spreads = spreads;
-	render.scroll(scroll);
 	this.trigger("renderer:spreads", spreads);
 
 	render.setLayout(new EPUBJS.Layout[layoutMethod]());
@@ -1427,6 +1421,15 @@ EPUBJS.Renderer.prototype.setDirection = function(direction){
 
 EPUBJS.Renderer.prototype.replace = function(query, func){
 	this.renders.forEach(function(render) {
+		// TODO: Due to loading optimization refactoring, renders do not
+		// necessarily have a `docEl` property (they have not
+		// necessarily completed loading yet). The hooks that call this
+		// method should probably be refactored to only apply to
+		// individual renders. That would be more computationally
+		// efficient, too.
+		if (!render.docEl) {
+			return;
+		}
 		var items = render.docEl.querySelectorAll(query),
 			resources = Array.prototype.slice.call(items);
 		resources.forEach(func, this);

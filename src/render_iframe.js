@@ -262,15 +262,6 @@ EPUBJS.Render.Iframe.prototype.isElementVisible = function(el){
 	return false;
 };
 
-
-EPUBJS.Render.Iframe.prototype.scroll = function(bool){
-	if(bool) {
-		this.iframe.scrolling = "yes";
-	} else {
-		this.iframe.scrolling = "no";
-	}
-};
-
 EPUBJS.Render.Iframe.prototype.visible = function(bool){
 	// Use `visibility` so dimensions remain calculable.
 	if(bool) {
