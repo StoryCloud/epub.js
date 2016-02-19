@@ -23,7 +23,6 @@ EPUBJS.Render.Iframe.prototype.create = function(){
 
 	this.iframe.addEventListener("load", this.loaded.bind(this), false);
 
-	this.isMobile = navigator.userAgent.match(/(iPad|iPhone|iPod|Mobile|Android)/g);
 	this.transform = EPUBJS.core.prefixed('transform');
 
 	return this.iframe;
@@ -126,6 +125,23 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 	this.calculateDimensions();
 };
 
+// Due to resizing issues on iOS, we had to make the renders `position:
+// absolute`, so to align pages to the left and right, we have to position them.
+EPUBJS.Render.Iframe.prototype.align = function (width) {
+	this.iframe.style.left = 'calc(50% - ' + width + 'px)';
+};
+
+EPUBJS.Render.Iframe.prototype.alignLeft = function () {
+	this.align(this.width);
+};
+
+EPUBJS.Render.Iframe.prototype.alignRight = function () {
+	this.align(0);
+};
+
+EPUBJS.Render.Iframe.prototype.alignCenter = function () {
+	this.align(this.width / 2);
+};
 
 EPUBJS.Render.Iframe.prototype.calculateDimensions = function(){
 	// Get the fractional height and width of the iframe
@@ -162,7 +178,8 @@ EPUBJS.Render.Iframe.prototype.setLeft = function(leftPos){
 	// this.docEl.style.marginLeft = -leftPos + "px";
 	// this.docEl.style[EPUBJS.Render.Iframe.transform] = 'translate('+ (-leftPos) + 'px, 0)';
 
-	if (this.isMobile) {
+	// TODO: Can we use feature detection here instead?
+	if (EPUBJS.core.isMobile) {
 		if (this.layoutSettings.layout !== 'pre-paginated') {
 			this.docEl.style[this.transform] = 'translate('+ (-leftPos) + 'px, 0)';
 		}

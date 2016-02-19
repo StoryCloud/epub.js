@@ -408,6 +408,7 @@ EPUBJS.Renderer.prototype.resizeRender = function (render) {
 		width = Math.floor(render.pageWidth * render.scale) - adjustment;
 		height = Math.floor(render.pageHeight * render.scale) - adjustment;
 		render.resize(width, height);
+		this.realignRender(render);
 	} else {
 		// Reflowable layout render dimensions are calculated based on
 		// the size of the frame, so calculate that first.
@@ -416,11 +417,26 @@ EPUBJS.Renderer.prototype.resizeRender = function (render) {
 	}
 };
 
+EPUBJS.Renderer.prototype.realignRender = function (render) {
+	if (render.layoutSettings.layout !== "pre-paginated") {
+		return;
+	}
+	var visibleRenders = this.getVisibleRenders();
+	if (visibleRenders.length === 2 && render === visibleRenders[0]) {
+		render.alignLeft();
+	} else if (visibleRenders.length === 2 && render === visibleRenders[1]) {
+		render.alignRight();
+	} else {
+		render.alignCenter();
+	}
+};
+
 EPUBJS.Renderer.prototype.updateRenderVisibility = function() {
-    var visibleRenders = this.getVisibleRenders();
+	var visibleRenders = this.getVisibleRenders();
 	this.renders.forEach(function (render) {
 		var isVisible = EPUBJS.core.contains(visibleRenders, render);
 		render.visible(isVisible);
+		this.realignRender(render);
 	}, this);
 };
 
@@ -1401,9 +1417,11 @@ EPUBJS.Renderer.prototype.setMinSpreadWidth = function(width){
 
 EPUBJS.Renderer.prototype.determineSpreads = function(){
 	var cutoff;
-	var inLandscape = typeof orientation !== 'undefined' &&
-		orientation !== 0 &&
-		orientation / 90 % 1 === 0;
+	var inLandscape =
+		// FIXME: Bad!! Rather than detecting mobile, scale the cutoff
+		// for shorter screens. (Sorry, it's demo day, I can't think
+		// straight.)
+		EPUBJS.core.isMobile && window.innerWidth > window.innerHeight;
 	if (inLandscape) {
 		// If in landscape on a mobile phone, we almost surely have room to
 		// spread things out. As for whether we should, we actually might not
