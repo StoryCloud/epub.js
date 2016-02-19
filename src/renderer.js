@@ -267,6 +267,20 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 		if (EPUBJS.Layout.isFixedLayout(contents)) {
 			render.layoutSettings.layout = "pre-paginated";
 		}
+		if (render.layoutSettings.layout === "pre-paginated" &&
+		    !this.container.classList.contains("fixed")) {
+			// Yuck... there isn't separation between the layout
+			// settings for an individual page and for the whole
+			// reader... all because of this annoying need to infer
+			// fixed layout.
+			this.container.classList.add("fixed");
+			// Maybe the container will be sized differently after
+			// adding the class. (This is only necessary because the
+			// size of the container is maintained internally; maybe
+			// we should query the DOM instead, though that does
+			// cause reflow.)
+			this.resized();
+		}
 		this.determineLayout(render);
 
 		// HTML element must have direction set if RTL or columnns will
@@ -1311,6 +1325,10 @@ EPUBJS.Renderer.prototype.hideHashChanges = function(){
 EPUBJS.Renderer.prototype.resize = function(width, height, setSize){
 	var spreads;
 
+	if (this.width === width && this.height === height) {
+		// No-op if the size is unchanged.
+		return;
+	}
 	this.width = width;
 	this.height = height;
 
