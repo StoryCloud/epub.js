@@ -268,16 +268,8 @@ EPUBJS.Render.Iframe.prototype.visible = function(bool){
 	// Use `visibility` so dimensions remain calculable.
 	if(bool) {
 		this.element.style.visibility = "visible";
-		this.element.style.position = "static";
-		this.element.style.top = null;
-		this.element.style.left = null;
 	} else {
 		this.element.style.visibility = "hidden";
-		// Take the element out of the flow of content so we can easily use CSS
-		// to position the visible elements.
-		this.element.style.position = "absolute";
-		this.element.style.top = "0";
-		this.element.style.left = "0";
 	}
 };
 
