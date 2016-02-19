@@ -284,11 +284,6 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 
 		render.chapter.setDocument(render.document);
 
-		if(!this.initWidth && !this.initHeight){
-			render.window.addEventListener("resize", this.resized, false);
-			render.window.addEventListener("orientationchange", this.resized, false);
-		}
-
 		this.addEventListeners(render);
 		this.addSelectionListeners(render);
 
