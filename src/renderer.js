@@ -97,8 +97,6 @@ EPUBJS.Renderer.prototype.createRender = function () {
 	render.create();
 	if(this.initWidth && this.initHeight){
 		render.resize(this.initWidth, this.initHeight);
-	} else {
-		render.resize('100%', '100%');
 	}
 	return render;
 };
@@ -269,6 +267,20 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 		if (EPUBJS.Layout.isFixedLayout(contents)) {
 			render.layoutSettings.layout = "pre-paginated";
 		}
+		if (render.layoutSettings.layout === "pre-paginated" &&
+		    !this.container.classList.contains("fixed")) {
+			// Yuck... there isn't separation between the layout
+			// settings for an individual page and for the whole
+			// reader... all because of this annoying need to infer
+			// fixed layout.
+			this.container.classList.add("fixed");
+			// Maybe the container will be sized differently after
+			// adding the class. (This is only necessary because the
+			// size of the container is maintained internally; maybe
+			// we should query the DOM instead, though that does
+			// cause reflow.)
+			this.resized();
+		}
 		this.determineLayout(render);
 
 		// HTML element must have direction set if RTL or columnns will
@@ -286,10 +298,6 @@ EPUBJS.Renderer.prototype.load = function(contents, url, render){
 
 		render.chapter.setDocument(render.document);
 
-		if(!this.initWidth && !this.initHeight){
-			render.window.addEventListener("resize", this.resized, false);
-		}
-
 		this.addEventListeners(render);
 		this.addSelectionListeners(render);
 
@@ -304,6 +312,9 @@ EPUBJS.Renderer.prototype.afterLoad = function() {
 	this.contents = render.docEl;
 	this.doc = render.document;
 
+	// FIXME: The title page can mess up the other pages' dimensions, so
+	// this is a temporary workaround, as reformatting feels heavy-handed.
+	this.reformat();
 	this.updateRenderVisibility();
 };
 
@@ -393,28 +404,38 @@ EPUBJS.Renderer.prototype.resizeRender = function (render) {
 		width = this.width / visibleRenders.length;
 		height = this.height;
 		render.format(width, height, this.gap);
-		// Prevent rounding errors with this adjustment, as these are inline
-		// elements and they might stack if we don't give them enough space.
-		// Not sure if this is a guessing game, but `2` works for now.
-		var adjustment = 2;
-		width = Math.floor(render.pageWidth * render.scale) - adjustment;
-		height = Math.floor(render.pageHeight * render.scale) - adjustment;
+		width = Math.floor(render.pageWidth * render.scale);
+		height = Math.floor(render.pageHeight * render.scale);
 		render.resize(width, height);
+		this.realignRender(render);
 	} else {
-		// Reflowable layout render dimensions are calculated based on the size
-		// of the frame, so resize that first.
-		width = (1 / visibleRenders.length * 100) + "%";
-		height = "100%";
-		render.resize(width, height);
+		// Reflowable layout render dimensions are calculated based on
+		// the size of the frame, so calculate that first.
+		render.calculateDimensions();
 		render.format(render.width, render.height, this.gap);
 	}
 };
 
+EPUBJS.Renderer.prototype.realignRender = function (render) {
+	if (render.layoutSettings.layout !== "pre-paginated") {
+		return;
+	}
+	var visibleRenders = this.getVisibleRenders();
+	if (visibleRenders.length === 2 && render === visibleRenders[0]) {
+		render.alignLeft();
+	} else if (visibleRenders.length === 2 && render === visibleRenders[1]) {
+		render.alignRight();
+	} else {
+		render.alignCenter();
+	}
+};
+
 EPUBJS.Renderer.prototype.updateRenderVisibility = function() {
-    var visibleRenders = this.getVisibleRenders();
+	var visibleRenders = this.getVisibleRenders();
 	this.renders.forEach(function (render) {
 		var isVisible = EPUBJS.core.contains(visibleRenders, render);
 		render.visible(isVisible);
+		this.realignRender(render);
 	}, this);
 };
 
@@ -1319,6 +1340,10 @@ EPUBJS.Renderer.prototype.hideHashChanges = function(){
 EPUBJS.Renderer.prototype.resize = function(width, height, setSize){
 	var spreads;
 
+	if (this.width === width && this.height === height) {
+		// No-op if the size is unchanged.
+		return;
+	}
 	this.width = width;
 	this.height = height;
 
@@ -1390,7 +1415,28 @@ EPUBJS.Renderer.prototype.setMinSpreadWidth = function(width){
 };
 
 EPUBJS.Renderer.prototype.determineSpreads = function(){
-	var cutoff = this.minSpreadWidth;
+	var cutoff;
+	var inLandscape =
+		// FIXME: Bad!! Rather than detecting mobile, scale the cutoff
+		// for shorter screens. (Sorry, it's demo day, I can't think
+		// straight.)
+		EPUBJS.core.isMobile && window.innerWidth > window.innerHeight;
+	if (inLandscape) {
+		// If in landscape on a mobile phone, we almost surely have room to
+		// spread things out. As for whether we should, we actually might not
+		// know (since for EPUB2 documents, we duck-type for pre-paginated books
+		// only after the document is loaded), so try and find an excuse not to,
+		// but pessimistically we otherwise must.
+		var render = this.getVisibleRender();
+		if (render &&
+			render.layoutSettings.layout !== undefined &&
+			render.layoutSettings.layout !== 'pre-paginated') {
+			return false;
+		}
+		return true;
+	} else {
+		cutoff = this.minSpreadWidth;
+	}
 	if(this.isForcedSingle || !cutoff || this.width < cutoff) {
 		return false; //-- Single Page
 	}else{

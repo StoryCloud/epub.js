@@ -23,7 +23,6 @@ EPUBJS.Render.Iframe.prototype.create = function(){
 
 	this.iframe.addEventListener("load", this.loaded.bind(this), false);
 
-	this.isMobile = navigator.userAgent.match(/(iPad|iPhone|iPod|Mobile|Android)/g);
 	this.transform = EPUBJS.core.prefixed('transform');
 
 	return this.iframe;
@@ -114,18 +113,36 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 
 	if(!this.iframe) return;
 
-	this.iframe.height = height;
+	this.iframe.style.height = height + "px";
 
 	if(!isNaN(width) && width % 2 !== 0){
 		width += 1; //-- Prevent cutting off edges of text in columns
 	}
 
-	this.iframe.width = width;
+	this.iframe.style.width = width + "px";
 
 	// Changing the iframe size may change the render's dimensions.
 	this.calculateDimensions();
 };
 
+// Due to resizing issues on iOS, we had to make the renders `position:
+// absolute`, so to align pages to the left and right, we have to position them.
+EPUBJS.Render.Iframe.prototype.align = function (width, height) {
+	this.iframe.style.left = 'calc(50% - ' + width + 'px)';
+	this.iframe.style.top = 'calc(50% - ' + height + 'px)';
+};
+
+EPUBJS.Render.Iframe.prototype.alignLeft = function () {
+	this.align(this.width, this.height / 2);
+};
+
+EPUBJS.Render.Iframe.prototype.alignRight = function () {
+	this.align(0, this.height / 2);
+};
+
+EPUBJS.Render.Iframe.prototype.alignCenter = function () {
+	this.align(this.width / 2, this.height / 2);
+};
 
 EPUBJS.Render.Iframe.prototype.calculateDimensions = function(){
 	// Get the fractional height and width of the iframe
@@ -149,7 +166,7 @@ EPUBJS.Render.Iframe.prototype.setDirection = function(direction){
 	// Undo previous changes if needed
 	if(this.docEl && this.docEl.dir == "rtl"){
 		this.docEl.dir = "rtl";
-		if (this.layout !== "pre-paginated") {
+		if (this.layoutSettings.layout !== "pre-paginated") {
 			this.docEl.style.position = "static";
 			this.docEl.style.right = "auto";
 		}
@@ -162,8 +179,11 @@ EPUBJS.Render.Iframe.prototype.setLeft = function(leftPos){
 	// this.docEl.style.marginLeft = -leftPos + "px";
 	// this.docEl.style[EPUBJS.Render.Iframe.transform] = 'translate('+ (-leftPos) + 'px, 0)';
 
-	if (this.isMobile) {
-		this.docEl.style[this.transform] = 'translate('+ (-leftPos) + 'px, 0)';
+	// TODO: Can we use feature detection here instead?
+	if (EPUBJS.core.isMobile) {
+		if (this.layoutSettings.layout !== 'pre-paginated') {
+			this.docEl.style[this.transform] = 'translate('+ (-leftPos) + 'px, 0)';
+		}
 	} else {
 		this.document.defaultView.scrollTo(leftPos, 0);
 	}
@@ -266,12 +286,8 @@ EPUBJS.Render.Iframe.prototype.visible = function(bool){
 	// Use `visibility` so dimensions remain calculable.
 	if(bool) {
 		this.element.style.visibility = "visible";
-		this.element.style.position = "static";
 	} else {
 		this.element.style.visibility = "hidden";
-		// Take the element out of the flow of content so we can easily use CSS
-		// to position the visible elements.
-		this.element.style.position = "absolute";
 	}
 };
 

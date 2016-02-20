@@ -1,6 +1,8 @@
 var EPUBJS = EPUBJS || {};
 EPUBJS.core = {};
 
+EPUBJS.core.isMobile = navigator.userAgent.match(/(iPad|iPhone|iPod|Mobile|Android)/g);
+
 //-- Get a element for an id
 EPUBJS.core.getEl = function(elem) {
 	return document.getElementById(elem);
