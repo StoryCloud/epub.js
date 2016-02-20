@@ -6026,20 +6026,21 @@ EPUBJS.Render.Iframe.prototype.resize = function(width, height){
 
 // Due to resizing issues on iOS, we had to make the renders `position:
 // absolute`, so to align pages to the left and right, we have to position them.
-EPUBJS.Render.Iframe.prototype.align = function (width) {
+EPUBJS.Render.Iframe.prototype.align = function (width, height) {
 	this.iframe.style.left = 'calc(50% - ' + width + 'px)';
+	this.iframe.style.top = 'calc(50% - ' + height + 'px)';
 };
 
 EPUBJS.Render.Iframe.prototype.alignLeft = function () {
-	this.align(this.width);
+	this.align(this.width, this.height / 2);
 };
 
 EPUBJS.Render.Iframe.prototype.alignRight = function () {
-	this.align(0);
+	this.align(0, this.height / 2);
 };
 
 EPUBJS.Render.Iframe.prototype.alignCenter = function () {
-	this.align(this.width / 2);
+	this.align(this.width / 2, this.height / 2);
 };
 
 EPUBJS.Render.Iframe.prototype.calculateDimensions = function(){
@@ -6519,6 +6520,9 @@ EPUBJS.Renderer.prototype.afterLoad = function() {
 	this.contents = render.docEl;
 	this.doc = render.document;
 
+	// FIXME: The title page can mess up the other pages' dimensions, so
+	// this is a temporary workaround, as reformatting feels heavy-handed.
+	this.reformat();
 	this.updateRenderVisibility();
 };
 
