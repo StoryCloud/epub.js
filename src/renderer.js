@@ -312,6 +312,9 @@ EPUBJS.Renderer.prototype.afterLoad = function() {
 	this.contents = render.docEl;
 	this.doc = render.document;
 
+	// FIXME: The title page can mess up the other pages' dimensions, so
+	// this is a temporary workaround, as reformatting feels heavy-handed.
+	this.reformat();
 	this.updateRenderVisibility();
 };
 
