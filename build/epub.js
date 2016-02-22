@@ -2613,25 +2613,23 @@ EPUBJS.Book.prototype.prevPage = function(defer) {
 EPUBJS.Book.prototype.nextChapter = function(defer) {
     var defer = defer || new RSVP.defer();
 
-    if (this.spinePos < this.spine.length - 1) {
-		var min;
-		if (this.direction === "rtl") {
-			min = this.renderer.getMaximumVisibleChapters();
-		} else {
-			min = this.renderer.getVisibleChapters().length;
-		}
-		var next = this.spinePos;
-		for (var i = 0; i < min; i++) {
+	var min;
+	if (this.direction === "rtl") {
+		min = this.renderer.getMaximumVisibleChapters();
+	} else {
+		min = this.renderer.getVisibleChapters().length;
+	}
+	var next = this.spinePos;
+	for (var i = 0; i < min; i++) {
+		next++;
+		// Skip non linear chapters
+		while (this.spine[next] && this.spine[next].linear && this.spine[next].linear == 'no') {
 			next++;
-			// Skip non linear chapters
-			while (this.spine[next] && this.spine[next].linear && this.spine[next].linear == 'no') {
-				next++;
-			}
 		}
-		next = Math.min(this.spine.length, next);
-		if (next > this.spinePos) {
-			return this.displayChapter(next, false, defer);
-		}
+	}
+	next = Math.min(this.spine.length, next);
+	if (next <= this.spine.length - 1 && next > this.spinePos) {
+		return this.displayChapter(next, false, defer);
 	}
     
     this.trigger("book:atEnd");
@@ -2642,25 +2640,23 @@ EPUBJS.Book.prototype.nextChapter = function(defer) {
 EPUBJS.Book.prototype.prevChapter = function(defer) {
     var defer = defer || new RSVP.defer();
 
-    if (this.spinePos > 0) {
-		var min;
-		if (this.direction === "rtl") {
-			min = this.renderer.getVisibleChapters().length;
-		} else {
-			min = this.renderer.getMaximumVisibleChapters();
-		}
-		var prev = this.spinePos;
-		for (var i = 0; i < min; i++) {
+	var min;
+	if (this.direction === "rtl") {
+		min = this.renderer.getVisibleChapters().length;
+	} else {
+		min = this.renderer.getMaximumVisibleChapters();
+	}
+	var prev = this.spinePos;
+	for (var i = 0; i < min; i++) {
+		prev--;
+		while (this.spine[prev] && this.spine[prev].linear && this.spine[prev].linear == 'no') {
 			prev--;
-			while (this.spine[prev] && this.spine[prev].linear && this.spine[prev].linear == 'no') {
-				prev--;
-			}
 		}
-		prev = Math.max(0, prev);
-		if (prev < this.spinePos) {
-			return this.displayChapter(prev, true, defer);
-		}
-    }
+	}
+	prev = Math.max(0, prev);
+	if (prev > 0 && prev < this.spinePos) {
+		return this.displayChapter(prev, true, defer);
+	}
 
     this.trigger("book:atStart");
     defer.resolve(true);
