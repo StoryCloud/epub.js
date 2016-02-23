@@ -969,7 +969,7 @@ EPUBJS.Book.prototype.nextChapter = function(defer) {
 		}
 	}
 	next = Math.min(this.spine.length, next);
-	if (next <= this.spine.length - 1 && next > this.spinePos) {
+	if (next > this.spinePos) {
 		return this.displayChapter(next, false, defer);
 	}
     
@@ -995,7 +995,7 @@ EPUBJS.Book.prototype.prevChapter = function(defer) {
 		}
 	}
 	prev = Math.max(0, prev);
-	if (prev > 0 && prev < this.spinePos) {
+	if (prev < this.spinePos) {
 		return this.displayChapter(prev, true, defer);
 	}
 
