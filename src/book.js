@@ -961,16 +961,19 @@ EPUBJS.Book.prototype.nextChapter = function(defer) {
 		min = this.renderer.getVisibleChapters().length;
 	}
 	var next = this.spinePos;
+	var candidate;
 	for (var i = 0; i < min; i++) {
 		next++;
 		// Skip non linear chapters
 		while (this.spine[next] && this.spine[next].linear && this.spine[next].linear == 'no') {
 			next++;
 		}
+		if (this.spine[next]) {
+			candidate = next;
+		}
 	}
-	next = Math.min(this.spine.length, next);
-	if (next > this.spinePos) {
-		return this.displayChapter(next, false, defer);
+	if (typeof candidate !== 'undefined' && candidate !== this.spinePos) {
+		return this.displayChapter(candidate, false, defer);
 	}
     
     this.trigger("book:atEnd");
@@ -988,15 +991,18 @@ EPUBJS.Book.prototype.prevChapter = function(defer) {
 		min = this.renderer.getMaximumVisibleChapters();
 	}
 	var prev = this.spinePos;
+	var candidate;
 	for (var i = 0; i < min; i++) {
 		prev--;
 		while (this.spine[prev] && this.spine[prev].linear && this.spine[prev].linear == 'no') {
 			prev--;
 		}
+		if (this.spine[prev]) {
+			candidate = prev;
+		}
 	}
-	prev = Math.max(0, prev);
-	if (prev < this.spinePos) {
-		return this.displayChapter(prev, true, defer);
+	if (typeof candidate !== 'undefined' && candidate !== this.spinePos) {
+		return this.displayChapter(candidate, true, defer);
 	}
 
     this.trigger("book:atStart");
