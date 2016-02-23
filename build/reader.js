@@ -28,6 +28,9 @@ EPUBJS.Reader = function(bookPath, _options) {
 	var search = window.location.search;
 	var parameters;
 
+	EPUBJS.Hooks.mixin(this);
+	this.getHooks();
+
 	this.settings = EPUBJS.core.defaults(_options || {}, {
 		bookPath : bookPath,
 		restore : false,
@@ -111,11 +114,20 @@ EPUBJS.Reader = function(bookPath, _options) {
 		reader.TocController = EPUBJS.reader.TocController.call(reader, toc);
 	});
 
-	window.addEventListener("beforeunload", this.unload.bind(this), false);
+	// Bind so we can remove these listeners later
+	this.unload = this.unload.bind(this);
+	this.hashChanged = this.hashChanged.bind(this);
+	this.adjustFontSize = this.adjustFontSize.bind(this);
 
-	window.addEventListener("hashchange", this.hashChanged.bind(this), false);
+	window.addEventListener("beforeunload", this.unload, false);
+	window.addEventListener("hashchange", this.hashChanged, false);
+	document.addEventListener('keydown', this.adjustFontSize, false);
 
-	document.addEventListener('keydown', this.adjustFontSize.bind(this), false);
+	this.registerHook("reader:destroy", function () {
+		window.removeEventListener("beforeunload", this.unload);
+		window.removeEventListener("hashchange", this.hashChanged);
+		document.removeEventListener('keydown', this.adjustFontSize);
+	}.bind(this));
 
 	book.on("renderer:keydown", this.adjustFontSize.bind(this));
 	book.on("renderer:keydown", reader.ReaderController.arrowKeys.bind(this));
@@ -314,6 +326,11 @@ EPUBJS.Reader.prototype.selectedRange = function(range){
 	}
 };
 
+EPUBJS.Reader.prototype.destroy = function(){
+	this.triggerHooks("reader:destroy");
+	this.book.destroy();
+};
+
 //-- Enable binding events to reader
 RSVP.EventTarget.mixin(EPUBJS.Reader.prototype);
 
@@ -429,17 +446,21 @@ EPUBJS.reader.ControlsController = function(book) {
 			screenfull.toggle($('#container')[0]);
 		});
 		if(screenfull.raw) {
-			document.addEventListener(screenfull.raw.fullscreenchange, function() {
-					fullscreen = screenfull.isFullscreen;
-					if(fullscreen) {
-						$fullscreen
-							.addClass("icon-resize-small")
-							.removeClass("icon-resize-full");
-					} else {
-						$fullscreen
-							.addClass("icon-resize-full")
-							.removeClass("icon-resize-small");
-					}
+			var onFullscreenchange = function() {
+				fullscreen = screenfull.isFullscreen;
+				if(fullscreen) {
+					$fullscreen
+						.addClass("icon-resize-small")
+						.removeClass("icon-resize-full");
+				} else {
+					$fullscreen
+						.addClass("icon-resize-full")
+						.removeClass("icon-resize-small");
+				}
+			};
+			document.addEventListener(screenfull.raw.fullscreenchange, onFullscreenchange);
+			reader.registerHook("reader:destroy", function () {
+				document.removeEventListener(screenfull.raw.fullscreenchange, onFullscreenchange);
 			});
 		}
 	}
@@ -897,6 +918,9 @@ EPUBJS.reader.ReaderController = function(book) {
 	}
 
 	document.addEventListener('keydown', arrowKeys, false);
+	reader.registerHook("reader:destroy", function () {
+		document.removeEventListener("keydown", arrowKeys);
+	});
 
 	$next.on("click", function(e){
 		
@@ -946,6 +970,7 @@ EPUBJS.reader.ReaderController = function(book) {
 		"arrowKeys" : arrowKeys
 	};
 };
+
 EPUBJS.reader.SettingsController = function() {
 	var book = this.book;
 	var reader = this;
