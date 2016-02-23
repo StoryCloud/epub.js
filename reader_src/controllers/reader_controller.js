@@ -94,6 +94,9 @@ EPUBJS.reader.ReaderController = function(book) {
 	}
 
 	document.addEventListener('keydown', arrowKeys, false);
+	reader.registerHook("reader:destroy", function () {
+		document.removeEventListener("keydown", arrowKeys);
+	});
 
 	$next.on("click", function(e){
 		

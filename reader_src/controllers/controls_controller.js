@@ -43,17 +43,21 @@ EPUBJS.reader.ControlsController = function(book) {
 			screenfull.toggle($('#container')[0]);
 		});
 		if(screenfull.raw) {
-			document.addEventListener(screenfull.raw.fullscreenchange, function() {
-					fullscreen = screenfull.isFullscreen;
-					if(fullscreen) {
-						$fullscreen
-							.addClass("icon-resize-small")
-							.removeClass("icon-resize-full");
-					} else {
-						$fullscreen
-							.addClass("icon-resize-full")
-							.removeClass("icon-resize-small");
-					}
+			var onFullscreenchange = function() {
+				fullscreen = screenfull.isFullscreen;
+				if(fullscreen) {
+					$fullscreen
+						.addClass("icon-resize-small")
+						.removeClass("icon-resize-full");
+				} else {
+					$fullscreen
+						.addClass("icon-resize-full")
+						.removeClass("icon-resize-small");
+				}
+			};
+			document.addEventListener(screenfull.raw.fullscreenchange, onFullscreenchange);
+			reader.registerHook("reader:destroy", function () {
+				document.removeEventListener(screenfull.raw.fullscreenchange, onFullscreenchange);
 			});
 		}
 	}

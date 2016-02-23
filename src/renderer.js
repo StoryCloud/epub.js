@@ -83,6 +83,11 @@ EPUBJS.Renderer.prototype.initialize = function(element, width, height){
 
 	window.addEventListener("resize", this.resized);
 	window.addEventListener("orientationchange", this.resized);
+
+	this.registerHook("renderer:destroy", function () {
+		window.removeEventListener("resize", this.resized);
+		window.removeEventListener("orientationchange", this.resized);
+	}.bind(this));
 };
 
 EPUBJS.Renderer.prototype.findRenderForChapter = function(chapter){
@@ -587,8 +592,7 @@ EPUBJS.Renderer.prototype.remove = function() {
 	}, this);
 	this.renders = [];
 
-	window.removeEventListener("resize", this.resized);
-	window.removeEventListener("orientationchange", this.resized);
+	this.triggerHooks("renderer:destroy");
 };
 
 //-- STYLES

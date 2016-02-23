@@ -2,6 +2,9 @@ EPUBJS.Book = function(options){
 
 	var book = this;
 
+	EPUBJS.Hooks.mixin(this);
+	this.getHooks();
+
 	this.settings = EPUBJS.core.defaults(options || {}, {
 		bookPath : undefined,
 		bookKey : undefined,
@@ -118,7 +121,11 @@ EPUBJS.Book = function(options){
 		this.open(this.settings.bookPath, this.settings.reload);
 	}
 
-	window.addEventListener("beforeunload", this.unload.bind(this), false);
+	this.unload = this.unload.bind(this);
+	window.addEventListener("beforeunload", this.unload, false);
+	this.registerHook("book:destroy", function () {
+		window.removeEventListener("beforeunload", this.unload);
+	}.bind(this));
 
 	//-- Listen for these promises:
 	//-- book.opened.then()
@@ -470,22 +477,31 @@ EPUBJS.Book.prototype.getToc = function() {
 //-- Listeners for browser events
 EPUBJS.Book.prototype.networkListeners = function(){
 	var book = this;
-	window.addEventListener("offline", function(e) {
+
+	var offline = function(e) {
 		book.online = false;
 		if (book.settings.storage) {
 			book.fromStorage(true);
 		}
 		book.trigger("book:offline");
-	}, false);
+	};
 
-	window.addEventListener("online", function(e) {
+	window.addEventListener("offline", offline, false);
+
+	var online = function(e) {
 		book.online = true;
 		if (book.settings.storage) {
 			book.fromStorage(false);
 		}
 		book.trigger("book:online");
-	}, false);
+	};
 
+	window.addEventListener("online", online, false);
+
+	book.registerHook("book:destroy", function () {
+		window.removeEventListener("offline", offline);
+		window.removeEventListener("online", online);
+	});
 };
 
 // Listen to all events the renderer triggers and pass them as book events
@@ -1344,7 +1360,7 @@ EPUBJS.Book.prototype.unload = function(){
 
 EPUBJS.Book.prototype.destroy = function() {
 
-	window.removeEventListener("beforeunload", this.unload);
+	this.triggerHooks("book:destroy");
 
 	if(this.currentChapters) {
 		this.currentChapters.forEach(function (chapter) {
