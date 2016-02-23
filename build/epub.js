@@ -2628,7 +2628,7 @@ EPUBJS.Book.prototype.nextChapter = function(defer) {
 		}
 	}
 	next = Math.min(this.spine.length, next);
-	if (next <= this.spine.length - 1 && next > this.spinePos) {
+	if (next > this.spinePos) {
 		return this.displayChapter(next, false, defer);
 	}
     
@@ -2654,7 +2654,7 @@ EPUBJS.Book.prototype.prevChapter = function(defer) {
 		}
 	}
 	prev = Math.max(0, prev);
-	if (prev > 0 && prev < this.spinePos) {
+	if (prev < this.spinePos) {
 		return this.displayChapter(prev, true, defer);
 	}
 
@@ -6517,8 +6517,12 @@ EPUBJS.Renderer.prototype.afterLoad = function() {
 	this.doc = render.document;
 
 	// FIXME: The title page can mess up the other pages' dimensions, so
-	// this is a temporary workaround, as reformatting feels heavy-handed.
-	this.reformat();
+	// reformat. I believe this should be a temporary workaround, as
+	// reformatting feels rather heavy-handed. Restrict it to fixed-layout
+	// epubs lest we lose our position in reflowing ones.
+	if (render.layoutSettings.layout === "pre-paginated") {
+		this.reformat();
+	}
 	this.updateRenderVisibility();
 };
 
