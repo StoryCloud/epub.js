@@ -2532,6 +2532,9 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 		cfi = false;
 	}
 
+	//-- Set the book's spine position
+	book.spinePos = pos;
+
 	var chapters = this.getSurroundingChapters(pos);
 
 	this._rendering = true;
@@ -2562,8 +2565,6 @@ EPUBJS.Book.prototype.displayChapter = function(chap, end, deferred){
 	//-- Success, Clear render queue
 	render.then(function(rendered){
 		// var inwait;
-		//-- Set the book's spine position
-		book.spinePos = pos;
 
 		defer.resolve(book.renderer);
 
