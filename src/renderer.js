@@ -83,6 +83,11 @@ EPUBJS.Renderer.prototype.initialize = function(element, width, height){
 
 	window.addEventListener("resize", this.resized);
 	window.addEventListener("orientationchange", this.resized);
+
+	this.registerHook("renderer:destroy", function () {
+		window.removeEventListener("resize", this.resized);
+		window.removeEventListener("orientationchange", this.resized);
+	}.bind(this));
 };
 
 EPUBJS.Renderer.prototype.findRenderForChapter = function(chapter){
@@ -313,8 +318,12 @@ EPUBJS.Renderer.prototype.afterLoad = function() {
 	this.doc = render.document;
 
 	// FIXME: The title page can mess up the other pages' dimensions, so
-	// this is a temporary workaround, as reformatting feels heavy-handed.
-	this.reformat();
+	// reformat. I believe this should be a temporary workaround, as
+	// reformatting feels rather heavy-handed. Restrict it to fixed-layout
+	// epubs lest we lose our position in reflowing ones.
+	if (render.layoutSettings.layout === "pre-paginated") {
+		this.reformat();
+	}
 	this.updateRenderVisibility();
 };
 
@@ -583,8 +592,7 @@ EPUBJS.Renderer.prototype.remove = function() {
 	}, this);
 	this.renders = [];
 
-	window.removeEventListener("resize", this.resized);
-	window.removeEventListener("orientationchange", this.resized);
+	this.triggerHooks("renderer:destroy");
 };
 
 //-- STYLES

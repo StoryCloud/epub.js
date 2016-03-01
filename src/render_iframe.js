@@ -301,7 +301,10 @@ EPUBJS.Render.Iframe.prototype.format = function (width, height, gap) {
 // Cleanup event listeners
 EPUBJS.Render.Iframe.prototype.unload = function(){
 	this.window.removeEventListener("resize", this.resized);
-	this.window.location.reload();
+	if (typeof this.window.location.reload === "function") {
+		// Does this ever run? `reload` is not defined in Chrome...
+		this.window.location.reload();
+	}
 };
 
 //-- Enable binding events to Render

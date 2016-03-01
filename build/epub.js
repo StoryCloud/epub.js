@@ -1661,6 +1661,9 @@ EPUBJS.Book = function(options){
 
 	var book = this;
 
+	EPUBJS.Hooks.mixin(this);
+	this.getHooks();
+
 	this.settings = EPUBJS.core.defaults(options || {}, {
 		bookPath : undefined,
 		bookKey : undefined,
@@ -1777,7 +1780,11 @@ EPUBJS.Book = function(options){
 		this.open(this.settings.bookPath, this.settings.reload);
 	}
 
-	window.addEventListener("beforeunload", this.unload.bind(this), false);
+	this.unload = this.unload.bind(this);
+	window.addEventListener("beforeunload", this.unload, false);
+	this.registerHook("book:destroy", function () {
+		window.removeEventListener("beforeunload", this.unload);
+	}.bind(this));
 
 	//-- Listen for these promises:
 	//-- book.opened.then()
@@ -2129,22 +2136,31 @@ EPUBJS.Book.prototype.getToc = function() {
 //-- Listeners for browser events
 EPUBJS.Book.prototype.networkListeners = function(){
 	var book = this;
-	window.addEventListener("offline", function(e) {
+
+	var offline = function(e) {
 		book.online = false;
 		if (book.settings.storage) {
 			book.fromStorage(true);
 		}
 		book.trigger("book:offline");
-	}, false);
+	};
 
-	window.addEventListener("online", function(e) {
+	window.addEventListener("offline", offline, false);
+
+	var online = function(e) {
 		book.online = true;
 		if (book.settings.storage) {
 			book.fromStorage(false);
 		}
 		book.trigger("book:online");
-	}, false);
+	};
 
+	window.addEventListener("online", online, false);
+
+	book.registerHook("book:destroy", function () {
+		window.removeEventListener("offline", offline);
+		window.removeEventListener("online", online);
+	});
 };
 
 // Listen to all events the renderer triggers and pass them as book events
@@ -2613,25 +2629,26 @@ EPUBJS.Book.prototype.prevPage = function(defer) {
 EPUBJS.Book.prototype.nextChapter = function(defer) {
     var defer = defer || new RSVP.defer();
 
-    if (this.spinePos < this.spine.length - 1) {
-		var min;
-		if (this.direction === "rtl") {
-			min = this.renderer.getMaximumVisibleChapters();
-		} else {
-			min = this.renderer.getVisibleChapters().length;
-		}
-		var next = this.spinePos;
-		for (var i = 0; i < min; i++) {
+	var min;
+	if (this.direction === "rtl") {
+		min = this.renderer.getMaximumVisibleChapters();
+	} else {
+		min = this.renderer.getVisibleChapters().length;
+	}
+	var next = this.spinePos;
+	var candidate;
+	for (var i = 0; i < min; i++) {
+		next++;
+		// Skip non linear chapters
+		while (this.spine[next] && this.spine[next].linear && this.spine[next].linear == 'no') {
 			next++;
-			// Skip non linear chapters
-			while (this.spine[next] && this.spine[next].linear && this.spine[next].linear == 'no') {
-				next++;
-			}
 		}
-		next = Math.min(this.spine.length, next);
-		if (next > this.spinePos) {
-			return this.displayChapter(next, false, defer);
+		if (this.spine[next]) {
+			candidate = next;
 		}
+	}
+	if (typeof candidate !== 'undefined' && candidate !== this.spinePos) {
+		return this.displayChapter(candidate, false, defer);
 	}
     
     this.trigger("book:atEnd");
@@ -2642,25 +2659,26 @@ EPUBJS.Book.prototype.nextChapter = function(defer) {
 EPUBJS.Book.prototype.prevChapter = function(defer) {
     var defer = defer || new RSVP.defer();
 
-    if (this.spinePos > 0) {
-		var min;
-		if (this.direction === "rtl") {
-			min = this.renderer.getVisibleChapters().length;
-		} else {
-			min = this.renderer.getMaximumVisibleChapters();
-		}
-		var prev = this.spinePos;
-		for (var i = 0; i < min; i++) {
+	var min;
+	if (this.direction === "rtl") {
+		min = this.renderer.getVisibleChapters().length;
+	} else {
+		min = this.renderer.getMaximumVisibleChapters();
+	}
+	var prev = this.spinePos;
+	var candidate;
+	for (var i = 0; i < min; i++) {
+		prev--;
+		while (this.spine[prev] && this.spine[prev].linear && this.spine[prev].linear == 'no') {
 			prev--;
-			while (this.spine[prev] && this.spine[prev].linear && this.spine[prev].linear == 'no') {
-				prev--;
-			}
 		}
-		prev = Math.max(0, prev);
-		if (prev < this.spinePos) {
-			return this.displayChapter(prev, true, defer);
+		if (this.spine[prev]) {
+			candidate = prev;
 		}
-    }
+	}
+	if (typeof candidate !== 'undefined' && candidate !== this.spinePos) {
+		return this.displayChapter(candidate, true, defer);
+	}
 
     this.trigger("book:atStart");
     defer.resolve(true);
@@ -3001,7 +3019,7 @@ EPUBJS.Book.prototype.unload = function(){
 
 EPUBJS.Book.prototype.destroy = function() {
 
-	window.removeEventListener("beforeunload", this.unload);
+	this.triggerHooks("book:destroy");
 
 	if(this.currentChapters) {
 		this.currentChapters.forEach(function (chapter) {
@@ -6200,7 +6218,10 @@ EPUBJS.Render.Iframe.prototype.format = function (width, height, gap) {
 // Cleanup event listeners
 EPUBJS.Render.Iframe.prototype.unload = function(){
 	this.window.removeEventListener("resize", this.resized);
-	this.window.location.reload();
+	if (typeof this.window.location.reload === "function") {
+		// Does this ever run? `reload` is not defined in Chrome...
+		this.window.location.reload();
+	}
 };
 
 //-- Enable binding events to Render
@@ -6291,6 +6312,11 @@ EPUBJS.Renderer.prototype.initialize = function(element, width, height){
 
 	window.addEventListener("resize", this.resized);
 	window.addEventListener("orientationchange", this.resized);
+
+	this.registerHook("renderer:destroy", function () {
+		window.removeEventListener("resize", this.resized);
+		window.removeEventListener("orientationchange", this.resized);
+	}.bind(this));
 };
 
 EPUBJS.Renderer.prototype.findRenderForChapter = function(chapter){
@@ -6521,8 +6547,12 @@ EPUBJS.Renderer.prototype.afterLoad = function() {
 	this.doc = render.document;
 
 	// FIXME: The title page can mess up the other pages' dimensions, so
-	// this is a temporary workaround, as reformatting feels heavy-handed.
-	this.reformat();
+	// reformat. I believe this should be a temporary workaround, as
+	// reformatting feels rather heavy-handed. Restrict it to fixed-layout
+	// epubs lest we lose our position in reflowing ones.
+	if (render.layoutSettings.layout === "pre-paginated") {
+		this.reformat();
+	}
 	this.updateRenderVisibility();
 };
 
@@ -6791,8 +6821,7 @@ EPUBJS.Renderer.prototype.remove = function() {
 	}, this);
 	this.renders = [];
 
-	window.removeEventListener("resize", this.resized);
-	window.removeEventListener("orientationchange", this.resized);
+	this.triggerHooks("renderer:destroy");
 };
 
 //-- STYLES
