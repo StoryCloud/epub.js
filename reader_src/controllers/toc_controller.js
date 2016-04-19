@@ -53,9 +53,43 @@ EPUBJS.reader.TocController = function(toc) {
 		$list.hide();
 	};
 
-	var chapterChange = function(e) {
-		var id = e.id,
-				$item = $list.find("#toc-"+id),
+	// Search through the table of contents for the first entry matching or
+	// before `chapter`.
+	var getClosestTocEntry = function (chapter) {
+		var candidate;
+		for (var i = 0; i < toc.length; i += 1) {
+			if (toc[i].spinePos <= chapter.spinePos) {
+				candidate = toc[i];
+			} else {
+				break;
+			}
+		}
+		return candidate;
+	};
+
+	var chaptersChange = function(chapters) {
+		// We want to find the first chronological chapter, but the
+		// chapters might not be in that order (e.g. if the book is
+		// right-to-left).
+		chapters = chapters.slice().sort(function (a, b) {
+			return a.spinePos - b.spinePos;
+		});
+
+		// Judge the "current chapter" (in terms of toc tracking) by the
+		// "first" chapter displayed (in the case of fixed-size epubs
+		// where multiple pages are visible).
+		var currentChapter = chapters[0];
+
+		// Fixed-size epubs' "chapters" are more like pages, and
+		// sometimes the toc reflects that, so find the "starting page"
+		// of the fixed-size epub "chapter." For reflowable epubs this
+		// will just match the same chapter.
+		var tocEntry = getClosestTocEntry(currentChapter);
+		if (!tocEntry) {
+			return;
+		}
+
+		var $item = $list.find("#toc-" + tocEntry.id),
 				$current = $list.find(".currentChapter"),
 				$open = $list.find('.openChapter');
 
@@ -72,7 +106,7 @@ EPUBJS.reader.TocController = function(toc) {
 		}
 	};
 
-	book.on('renderer:chapterDisplayed', chapterChange);
+	book.on('renderer:chaptersDisplayed', chaptersChange);
 
 	var tocitems = generateTocItems(toc);
 

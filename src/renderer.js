@@ -61,6 +61,7 @@ EPUBJS.Renderer.prototype.Events = [
 	"renderer:chapterUnload",
 	"renderer:chapterUnloaded",
 	"renderer:chapterDisplayed",
+	"renderer:chaptersDisplayed",
 	"renderer:locationChanged",
 	"renderer:visibleLocationChanged",
 	"renderer:visibleRangeChanged",
@@ -348,6 +349,7 @@ EPUBJS.Renderer.prototype.afterDisplay = function() {
 
 	msg.cfi = this.currentLocationCfi; //TODO: why is this cfi passed to chapterDisplayed
 	this.trigger("renderer:chapterDisplayed", msg);
+	this.trigger("renderer:chaptersDisplayed", this.getVisibleChapters());
 
 };
 
