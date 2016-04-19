@@ -61,7 +61,7 @@ EPUBJS.reader.TocController = function(toc) {
 
 		if($item.length){
 
-			if($item != $current && $item.has(currentChapter).length > 0) {
+			if($item.attr('id') !== $current.attr('id')) {
 				$current.removeClass("currentChapter");
 			}
 

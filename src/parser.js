@@ -315,8 +315,7 @@ EPUBJS.Parser.prototype.nav = function(navHtml, spineIndexByURL, bookSpine){
 };
 
 EPUBJS.Parser.prototype.navItem = function(item, spineIndexByURL, bookSpine){
-	var id = item.getAttribute('id') || false,
-			content = item.querySelector("a, span"),
+	var content = item.querySelector("a, span"),
 			src = content.getAttribute('href') || '',
 			text = content.textContent || "",
 			split = src.split("#"),
@@ -332,16 +331,15 @@ EPUBJS.Parser.prototype.navItem = function(item, spineIndexByURL, bookSpine){
 		parent = parentNode.getAttribute('id');
 	}
 
-	if(!id) {
-		if(spinePos) {
-			spineItem = bookSpine[spinePos];
-			id = spineItem.id;
-			cfi = spineItem.cfi;
-		} else {
-			id = 'epubjs-autogen-toc-id-' + EPUBJS.core.uuid();
-			item.setAttribute('id', id);
-		}
+	var id;
+	if(spinePos) {
+		spineItem = bookSpine[spinePos];
+		id = spineItem.id;
+		cfi = spineItem.cfi;
+	} else {
+		id = 'epubjs-autogen-toc-id-' + EPUBJS.core.uuid();
 	}
+	item.setAttribute('id', id);
 
 	return {
 		"id": id,
