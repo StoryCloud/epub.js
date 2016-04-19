@@ -1151,8 +1151,25 @@ EPUBJS.reader.TocController = function(toc) {
 
 		if($item.length){
 
-			if($item.attr('id') !== $current.attr('id')) {
-				$current.removeClass("currentChapter");
+			if ($current.length) {
+				var currentId = $current.attr('id').replace(/^toc-/, '');
+				if (chapters.some(function (chapter) {
+					return chapter.id === currentId;
+				})) {
+					// In the context of fixed-page epubs
+					// when there are multiple pages
+					// displayed: If we click on a chapter
+					// in the toc, we want that chapter to
+					// still look like the "current" one,
+					// whether or not half the page is also
+					// shared by the end of the previous
+					// chapter. Therefore, wait until the
+					// last opportunity to "change the
+					// current chapter."
+					return;
+				} else {
+					$current.removeClass("currentChapter");
+				}
 			}
 
 			$item.addClass("currentChapter");
